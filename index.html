@@ -1272,7 +1272,10 @@ function setSyncStatus(state, msg) {
 }
 
 function saveToLocal() {
-  try { localStorage.setItem('lct_entities', JSON.stringify(ENTITIES)); } catch(e) {}
+  try {
+    const payload = { entities: ENTITIES, ts: Date.now() };
+    localStorage.setItem('lct_entities', JSON.stringify(payload));
+  } catch(e) {}
 }
 
 async function saveToCloud() {
@@ -1282,7 +1285,7 @@ async function saveToCloud() {
     const r = await fetch('https://api.jsonbin.io/v3/b/' + CLOUD.binId, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'X-Master-Key': CLOUD.apiKey },
-      body: JSON.stringify({ entities: ENTITIES })
+      body: JSON.stringify({ entities: ENTITIES, ts: Date.now() })
     });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     setSyncStatus('ok', 'Saved ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}));
@@ -1298,11 +1301,21 @@ async function fetchFromCloud() {
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const data = await r.json();
     if (data && data.entities && Array.isArray(data.entities)) {
-      ENTITIES = data.entities;
-      nextId = Math.max(...ENTITIES.map(e => e.id), 40) + 1;
-      saveToLocal();
-      populateCountryFilter();
-      render();
+      // Only use cloud data if newer than local
+      const cloudTs = data.ts || 0;
+      let localTs = 0;
+      try {
+        const loc = JSON.parse(localStorage.getItem('lct_entities') || '{}');
+        localTs = loc.ts || 0;
+      } catch(e) {}
+      if (cloudTs >= localTs) {
+        ENTITIES = data.entities;
+        nextId = Math.max(...ENTITIES.map(e => e.id), 40) + 1;
+        const payload = { entities: ENTITIES, ts: cloudTs };
+        localStorage.setItem('lct_entities', JSON.stringify(payload));
+        populateCountryFilter();
+        render();
+      }
     }
     setSyncStatus('ok', 'Synced ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}));
     return true;
@@ -1352,7 +1365,7 @@ async function connectCloud() {
         'X-Bin-Name': 'Ideals Legal Compliance',
         'X-Bin-Private': 'true'
       },
-      body: JSON.stringify({ entities: ENTITIES })
+      body: JSON.stringify({ entities: ENTITIES, ts: Date.now() })
     });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const data = await r.json();
@@ -1375,23 +1388,18 @@ const DATA_VERSION = "v2026-05-16";
 
 function loadFromLocal() {
   try {
-    // Version check — if file updated, clear old localStorage
-    const savedVersion = localStorage.getItem('lct_version');
-    if (savedVersion !== DATA_VERSION) {
-      localStorage.removeItem('lct_entities');
-      localStorage.setItem('lct_version', DATA_VERSION);
-      return false;
-    }
     const saved = localStorage.getItem('lct_entities');
     if (saved) {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].int_type !== undefined) {
-        ENTITIES = parsed;
+      const payload = JSON.parse(saved);
+      // Handle both old array format and new {entities, ts} format
+      const entities = Array.isArray(payload) ? payload : payload.entities;
+      if (Array.isArray(entities) && entities.length > 0 && entities[0].int_type !== undefined) {
+        ENTITIES = entities;
         nextId = Math.max(...ENTITIES.map(e => e.id), 40) + 1;
         return true;
       }
     }
-  } catch(e) { localStorage.removeItem('lct_entities'); }
+  } catch(e) {}
   return false;
 }
 
@@ -1400,8 +1408,6 @@ function debouncedSave() {
   clearTimeout(saveDebounce);
   saveDebounce = setTimeout(saveToCloud, 800);
 }
-function fetchFromCloud() { return Promise.resolve(false); }
-function saveToCloud()    { return Promise.resolve(); }
 function openSetupModal() {} function closeSetupModal() {}
 
 // ── Export / Import for team sharing ──────────────────
