@@ -1332,12 +1332,19 @@ async function fetchFromCloud() {
   } catch(e) { setSyncStatus('error', 'Sync error'); return false; }
 }
 
-async function connectCloud() {
+async function connectCloud(pushOnly = false) {
   CLOUD.binId = FIXED_BIN_ID;
   localStorage.setItem('lct_cloud', JSON.stringify({ binId: FIXED_BIN_ID }));
-  const ok = await fetchFromCloud();
-  if (ok) startRefresh();
-  else setSyncStatus('offline', 'Offline — local only');
+  if (pushOnly) {
+    // Have local changes — push them, don't pull
+    await saveToCloud();
+    startRefresh();
+  } else {
+    // No local data — pull from cloud
+    const ok = await fetchFromCloud();
+    if (ok) startRefresh();
+    else setSyncStatus('offline', 'Offline — local only');
+  }
 }
 
 async function forceSyncToCloud() {
@@ -1352,7 +1359,29 @@ async function forceSyncToCloud() {
 
 function startRefresh() {
   if (refreshTimer) clearInterval(refreshTimer);
-  refreshTimer = setInterval(fetchFromCloud, 30000);
+  // Every 30s: pull cloud if cloud is newer, else push local
+  refreshTimer = setInterval(async () => {
+    if (!CLOUD.binId) return;
+    try {
+      const r = await fetch('https://api.jsonbin.io/v3/b/' + CLOUD.binId + '/latest', {
+        headers: { 'X-Master-Key': CLOUD.apiKey, 'X-Bin-Meta': 'false' }
+      });
+      if (!r.ok) return;
+      const data = await r.json();
+      const cloudTs = (data && data.ts) || 0;
+      let localTs = 0;
+      try { localTs = (JSON.parse(localStorage.getItem('lct_entities') || '{}').ts) || 0; } catch(e) {}
+      if (cloudTs > localTs && data.entities && data.entities.length > 0 && data.entities[0].int_type !== undefined) {
+        // Cloud is newer (colleague made changes) — pull
+        ENTITIES = data.entities;
+        nextId = Math.max(...ENTITIES.map(e => e.id), 40) + 1;
+        saveToLocal();
+        populateCountryFilter();
+        render();
+        setSyncStatus('ok', 'Updated ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}));
+      }
+    } catch(e) {}
+  }, 30000);
 }
 
 const DATA_VERSION = "v2026-05-16";
@@ -1419,19 +1448,19 @@ const today = new Date();
 document.getElementById('hdr-date').textContent =
   'Today: ' + today.toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'});
 
-// Render hardcoded data first
+// Load local data first — always preserves user changes
+const hasLocal = loadFromLocal();
 populateCountryFilter();
 render();
 
-// Check URL for bin ID from colleague's share link
-const urlParams = new URLSearchParams(location.search);
-if (urlParams.get('bin')) {
-  CLOUD.binId = urlParams.get('bin');
-  localStorage.setItem('lct_cloud', JSON.stringify({ binId: CLOUD.binId }));
+// Sync with cloud
+if (hasLocal) {
+  // Have local data — push it to cloud (don't overwrite with cloud)
+  connectCloud(true);
+} else {
+  // No local data — pull from cloud
+  connectCloud(false);
 }
-
-// Connect to JSONBin (auto-creates bin if needed)
-connectCloud();
 </script>
 </body>
 </html>
