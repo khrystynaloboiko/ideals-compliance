@@ -384,6 +384,9 @@
       <div class="s-field">
         <button class="btn" style="width:100%" onclick="exportCSV()">⬇ Export CSV</button>
       </div>
+      <div class="s-field">
+        <button class="btn" style="width:100%;background:#eff6ff;border-color:#93c5fd;color:#1d4ed8" onclick="forceSyncToCloud()">☁️ Push to cloud</button>
+      </div>
     </div>
 
     <div style="flex:1"></div>
@@ -1301,18 +1304,24 @@ async function fetchFromCloud() {
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const data = await r.json();
     if (data && data.entities && Array.isArray(data.entities)) {
-      // Only use cloud data if newer than local
+      const cloudEnts = data.entities;
       const cloudTs = data.ts || 0;
+      // If cloud has OLD structure (no int_type) → push local data to cloud
+      if (cloudEnts.length > 0 && cloudEnts[0].int_type === undefined) {
+        console.log('Cloud has old data — pushing current data to cloud');
+        await saveToCloud();
+        return true;
+      }
+      // Use cloud data only if newer than local
       let localTs = 0;
       try {
         const loc = JSON.parse(localStorage.getItem('lct_entities') || '{}');
         localTs = loc.ts || 0;
       } catch(e) {}
       if (cloudTs >= localTs) {
-        ENTITIES = data.entities;
+        ENTITIES = cloudEnts;
         nextId = Math.max(...ENTITIES.map(e => e.id), 40) + 1;
-        const payload = { entities: ENTITIES, ts: cloudTs };
-        localStorage.setItem('lct_entities', JSON.stringify(payload));
+        saveToLocal();
         populateCountryFilter();
         render();
       }
@@ -1377,6 +1386,16 @@ async function connectCloud() {
     setSyncStatus('offline', 'Offline — local only');
     console.error('Connect failed:', e.message);
   }
+}
+
+async function forceSyncToCloud() {
+  if (!CLOUD.binId) {
+    setSyncStatus('saving', 'Connecting…');
+    await connectCloud();
+    return;
+  }
+  await saveToCloud();
+  alert('✅ Synced! Colleagues will see your changes within 30 seconds.');
 }
 
 function startRefresh() {
