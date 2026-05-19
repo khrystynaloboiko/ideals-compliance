@@ -1263,7 +1263,8 @@ function exportCSV() {
 // SYNC — JSONBin.io (real-time) + localStorage (fallback)
 // ──────────────────────────────────────────────────────
 const API_KEY = '$2a$10$SxoLNqyPfGLC4vqqZymZSuxad8nRIT3puMf4P15eT39QWL4wN2F9m';
-let CLOUD = { apiKey: API_KEY, binId: '' };
+const FIXED_BIN_ID = '6a0c1f0aee5a733b12e2affc';
+let CLOUD = { apiKey: API_KEY, binId: FIXED_BIN_ID };
 let saveDebounce = null;
 let refreshTimer  = null;
 
@@ -1332,60 +1333,11 @@ async function fetchFromCloud() {
 }
 
 async function connectCloud() {
-  // Try cached bin ID first
-  const saved = localStorage.getItem('lct_cloud');
-  if (saved) {
-    try {
-      const cfg = JSON.parse(saved);
-      if (cfg.binId) {
-        CLOUD.binId = cfg.binId;
-        const ok = await fetchFromCloud();
-        if (ok) { startRefresh(); return; }
-      }
-    } catch(e) {}
-  }
-
-  setSyncStatus('saving', 'Connecting…');
-  try {
-    // Search for existing shared bin by name
-    const listR = await fetch('https://api.jsonbin.io/v3/b?sortBy=createdAt&sortOrder=desc', {
-      headers: { 'X-Master-Key': CLOUD.apiKey }
-    });
-    if (listR.ok) {
-      const bins = await listR.json();
-      const existing = Array.isArray(bins) && bins.find(b =>
-        b.metadata && b.metadata.name === 'Ideals Legal Compliance'
-      );
-      if (existing) {
-        CLOUD.binId = existing.metadata.id;
-        localStorage.setItem('lct_cloud', JSON.stringify({ binId: CLOUD.binId }));
-        await fetchFromCloud();
-        startRefresh();
-        return;
-      }
-    }
-
-    // No existing bin — create one (first time only)
-    const r = await fetch('https://api.jsonbin.io/v3/b', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Master-Key': CLOUD.apiKey,
-        'X-Bin-Name': 'Ideals Legal Compliance',
-        'X-Bin-Private': 'true'
-      },
-      body: JSON.stringify({ entities: ENTITIES, ts: Date.now() })
-    });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const data = await r.json();
-    CLOUD.binId = data.metadata.id;
-    localStorage.setItem('lct_cloud', JSON.stringify({ binId: CLOUD.binId }));
-    setSyncStatus('ok', 'Connected ✓');
-    startRefresh();
-  } catch(e) {
-    setSyncStatus('offline', 'Offline — local only');
-    console.error('Connect failed:', e.message);
-  }
+  CLOUD.binId = FIXED_BIN_ID;
+  localStorage.setItem('lct_cloud', JSON.stringify({ binId: FIXED_BIN_ID }));
+  const ok = await fetchFromCloud();
+  if (ok) startRefresh();
+  else setSyncStatus('offline', 'Offline — local only');
 }
 
 async function forceSyncToCloud() {
