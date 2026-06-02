@@ -989,8 +989,8 @@ function render() {
   const urgent = all
     .filter(e => {
       if (e.status === "over") return true;
-      if (e.int_type && e.int_days !== null && e.int_days >= 0 && e.int_days <= 30) return true;
-      if (e.ext_type && e.ext_days !== null && e.ext_days >= 0 && e.ext_days <= 30) return true;
+      if (e.int_type && e.int_status2026 !== "submitted" && e.int_days !== null && e.int_days >= 0 && e.int_days <= 30) return true;
+      if (e.ext_type && e.ext_status2026 !== "submitted" && e.ext_days !== null && e.ext_days >= 0 && e.ext_days <= 30) return true;
       return false;
     })
     .sort((a,b) => (a.days??9999) - (b.days??9999));
@@ -1002,11 +1002,11 @@ function render() {
       const cls = e.status === "over" ? "over" : "soon";
       // Build detail for int and/or ext
       const parts = [];
-      if (e.int_type && e.int_days !== null && e.int_days <= 30) {
+      if (e.int_type && e.int_status2026 !== "submitted" && e.int_days !== null && e.int_days <= 30) {
         const tag = e.int_days < 0 ? `overdue by ${Math.abs(e.int_days)}d` : `${e.int_days}d left`;
         parts.push(`📋 <b>Internal:</b> ${e.int_type} — ${tag} (${fmtDate(e.int_dl)})`);
       }
-      if (e.ext_type && e.ext_days !== null && e.ext_days <= 30) {
+      if (e.ext_type && e.ext_status2026 !== "submitted" && e.ext_days !== null && e.ext_days <= 30) {
         const tag = e.ext_days < 0 ? `overdue by ${Math.abs(e.ext_days)}d` : `${e.ext_days}d left`;
         parts.push(`📤 <b>External:</b> ${e.ext_type} — ${tag} (${fmtDate(e.ext_dl)})`);
       }
@@ -1263,7 +1263,7 @@ function exportCSV() {
 // SYNC — JSONBin.io (real-time) + localStorage (fallback)
 // ──────────────────────────────────────────────────────
 const API_KEY = '$2a$10$SxoLNqyPfGLC4vqqZymZSuxad8nRIT3puMf4P15eT39QWL4wN2F9m';
-const FIXED_BIN_ID = '6a0c1f0aee5a733b12e2affc';
+const FIXED_BIN_ID = '6a107ee8ee5a733b1201a4a5';
 let CLOUD = { apiKey: API_KEY, binId: FIXED_BIN_ID };
 let saveDebounce = null;
 let refreshTimer  = null;
