@@ -839,14 +839,19 @@ function processed() {
       e.int_base || "", e.int_rule || "", e.int_period || 12,
       e.int_last || e.last || "", e.int_incorp || "", int_isDone) : null;
     const int_days = int_dl ? Math.round((int_dl - today) / 86400000) : null;
-    const int_status = e.int_type ? statusOf(int_days) : "unk";
+    // If marked submitted/done → force status ok (hide from due soon)
+    const int_status = e.int_type
+      ? (e.int_status2026 === "submitted" ? "ok" : statusOf(int_days))
+      : "unk";
     const ext_isDone = e.ext_status2026 === "submitted" || e.status2026 === "submitted";
     // Fallback to legacy fields for old JSONBin data compatibility
     const ext_dl   = (e.ext_type || e.type) ? calcDeadlineFor(
       e.ext_base || e.base || "", e.ext_rule || e.rule || "", e.ext_period || e.period || 12,
       e.ext_last || e.last || "", e.ext_incorp || e.incorp || "", ext_isDone) : null;
     const ext_days = ext_dl ? Math.round((ext_dl - today) / 86400000) : null;
-    const ext_status = e.ext_type ? statusOf(ext_days) : "unk";
+    const ext_status = e.ext_type
+      ? (e.ext_status2026 === "submitted" ? "ok" : statusOf(ext_days))
+      : "unk";
     // Overall = worst active status
     const activeStatuses = [e.int_type ? int_status : null, e.ext_type ? ext_status : null].filter(Boolean);
     const overall = activeStatuses.length ? activeStatuses.reduce(worstStatus) : "unk";
@@ -1260,11 +1265,9 @@ function exportCSV() {
 }
 
 // ──────────────────────────────────────────────────────
-// SYNC — JSONBin.io (real-time) + localStorage (fallback)
+// SYNC — Firebase Realtime Database (REST API, no SDK needed)
 // ──────────────────────────────────────────────────────
-const API_KEY = '$2a$10$SxoLNqyPfGLC4vqqZymZSuxad8nRIT3puMf4P15eT39QWL4wN2F9m';
-const FIXED_BIN_ID = '6a107ee8ee5a733b1201a4a5';
-let CLOUD = { apiKey: API_KEY, binId: FIXED_BIN_ID };
+const FB_URL = 'https://ideals-compliance-default-rtdb.firebaseio.com/compliance.json';
 let saveDebounce = null;
 let refreshTimer  = null;
 
@@ -1277,130 +1280,63 @@ function setSyncStatus(state, msg) {
 
 function saveToLocal() {
   try {
-    const payload = { entities: ENTITIES, ts: Date.now() };
-    localStorage.setItem('lct_entities', JSON.stringify(payload));
+    localStorage.setItem('lct_entities', JSON.stringify({ entities: ENTITIES, ts: Date.now() }));
   } catch(e) {}
 }
-
-async function saveToCloud() {
-  if (!CLOUD.binId) return;
-  try {
-    setSyncStatus('saving', 'Saving…');
-    const r = await fetch('https://api.jsonbin.io/v3/b/' + CLOUD.binId, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'X-Master-Key': CLOUD.apiKey },
-      body: JSON.stringify({ entities: ENTITIES, ts: Date.now() })
-    });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    setSyncStatus('ok', 'Saved ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}));
-  } catch(e) { setSyncStatus('error', 'Save error'); }
-}
-
-async function fetchFromCloud() {
-  if (!CLOUD.binId) return false;
-  try {
-    const r = await fetch('https://api.jsonbin.io/v3/b/' + CLOUD.binId + '/latest', {
-      headers: { 'X-Master-Key': CLOUD.apiKey, 'X-Bin-Meta': 'false' }
-    });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const data = await r.json();
-    if (data && data.entities && Array.isArray(data.entities)) {
-      const cloudEnts = data.entities;
-      const cloudTs = data.ts || 0;
-      // If cloud has OLD structure (no int_type) → push local data to cloud
-      if (cloudEnts.length > 0 && cloudEnts[0].int_type === undefined) {
-        console.log('Cloud has old data — pushing current data to cloud');
-        await saveToCloud();
-        return true;
-      }
-      // Use cloud data only if newer than local
-      let localTs = 0;
-      try {
-        const loc = JSON.parse(localStorage.getItem('lct_entities') || '{}');
-        localTs = loc.ts || 0;
-      } catch(e) {}
-      if (cloudTs >= localTs) {
-        ENTITIES = cloudEnts;
-        nextId = Math.max(...ENTITIES.map(e => e.id), 40) + 1;
-        saveToLocal();
-        populateCountryFilter();
-        render();
-      }
-    }
-    setSyncStatus('ok', 'Synced ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}));
-    return true;
-  } catch(e) { setSyncStatus('error', 'Sync error'); return false; }
-}
-
-async function connectCloud(pushOnly = false) {
-  CLOUD.binId = FIXED_BIN_ID;
-  localStorage.setItem('lct_cloud', JSON.stringify({ binId: FIXED_BIN_ID }));
-  if (pushOnly) {
-    // Have local changes — push them, don't pull
-    await saveToCloud();
-    startRefresh();
-  } else {
-    // No local data — pull from cloud
-    const ok = await fetchFromCloud();
-    if (ok) startRefresh();
-    else setSyncStatus('offline', 'Offline — local only');
-  }
-}
-
-async function forceSyncToCloud() {
-  if (!CLOUD.binId) {
-    setSyncStatus('saving', 'Connecting…');
-    await connectCloud();
-    return;
-  }
-  await saveToCloud();
-  alert('✅ Synced! Colleagues will see your changes within 30 seconds.');
-}
-
-function startRefresh() {
-  if (refreshTimer) clearInterval(refreshTimer);
-  // Every 30s: pull cloud if cloud is newer, else push local
-  refreshTimer = setInterval(async () => {
-    if (!CLOUD.binId) return;
-    try {
-      const r = await fetch('https://api.jsonbin.io/v3/b/' + CLOUD.binId + '/latest', {
-        headers: { 'X-Master-Key': CLOUD.apiKey, 'X-Bin-Meta': 'false' }
-      });
-      if (!r.ok) return;
-      const data = await r.json();
-      const cloudTs = (data && data.ts) || 0;
-      let localTs = 0;
-      try { localTs = (JSON.parse(localStorage.getItem('lct_entities') || '{}').ts) || 0; } catch(e) {}
-      if (cloudTs > localTs && data.entities && data.entities.length > 0 && data.entities[0].int_type !== undefined) {
-        // Cloud is newer (colleague made changes) — pull
-        ENTITIES = data.entities;
-        nextId = Math.max(...ENTITIES.map(e => e.id), 40) + 1;
-        saveToLocal();
-        populateCountryFilter();
-        render();
-        setSyncStatus('ok', 'Updated ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}));
-      }
-    } catch(e) {}
-  }, 30000);
-}
-
-const DATA_VERSION = "v2026-05-16";
 
 function loadFromLocal() {
   try {
     const saved = localStorage.getItem('lct_entities');
-    if (saved) {
-      const payload = JSON.parse(saved);
-      // Handle both old array format and new {entities, ts} format
-      const entities = Array.isArray(payload) ? payload : payload.entities;
-      if (Array.isArray(entities) && entities.length > 0 && entities[0].int_type !== undefined) {
-        ENTITIES = entities;
-        nextId = Math.max(...ENTITIES.map(e => e.id), 40) + 1;
-        return true;
-      }
+    if (!saved) return false;
+    const payload = JSON.parse(saved);
+    const entities = Array.isArray(payload) ? payload : payload.entities;
+    if (Array.isArray(entities) && entities.length > 0 && entities[0].int_type !== undefined) {
+      ENTITIES = entities;
+      nextId = Math.max(...ENTITIES.map(e => e.id), 40) + 1;
+      return true;
     }
   } catch(e) {}
   return false;
+}
+
+async function saveToCloud() {
+  try {
+    setSyncStatus('saving', 'Saving…');
+    const r = await fetch(FB_URL, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entities: ENTITIES, ts: Date.now() })
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    setSyncStatus('ok', 'Saved ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}));
+  } catch(e) {
+    setSyncStatus('error', 'Save error');
+    console.error('Firebase save error:', e);
+  }
+}
+
+async function fetchFromCloud() {
+  try {
+    const r = await fetch(FB_URL);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    if (!data || !data.entities) return false;
+    const cloudTs = data.ts || 0;
+    let localTs = 0;
+    try { localTs = (JSON.parse(localStorage.getItem('lct_entities') || '{}').ts) || 0; } catch(e) {}
+    if (cloudTs > localTs && data.entities[0] && data.entities[0].int_type !== undefined) {
+      ENTITIES = data.entities;
+      nextId = Math.max(...ENTITIES.map(e => e.id), 40) + 1;
+      saveToLocal();
+      populateCountryFilter();
+      render();
+    }
+    setSyncStatus('ok', 'Synced ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}));
+    return true;
+  } catch(e) {
+    setSyncStatus('error', 'Sync error');
+    return false;
+  }
 }
 
 function debouncedSave() {
@@ -1408,38 +1344,29 @@ function debouncedSave() {
   clearTimeout(saveDebounce);
   saveDebounce = setTimeout(saveToCloud, 800);
 }
+
+async function connectCloud(pushOnly = false) {
+  if (pushOnly) {
+    await saveToCloud();
+    startRefresh();
+  } else {
+    const ok = await fetchFromCloud();
+    if (ok) startRefresh();
+    else setSyncStatus('offline', 'Offline — local only');
+  }
+}
+
+function startRefresh() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(fetchFromCloud, 30000);
+}
+
+async function forceSyncToCloud() {
+  await saveToCloud();
+  alert('✅ Synced! Colleagues will see your changes within 30 seconds.');
+}
+
 function openSetupModal() {} function closeSetupModal() {}
-
-// ── Export / Import for team sharing ──────────────────
-function exportState() {
-  const blob = new Blob([JSON.stringify({ entities: ENTITIES }, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'ideals-compliance-' + new Date().toISOString().slice(0,10) + '.json';
-  a.click();
-}
-
-function importState() {
-  const input = document.createElement('input');
-  input.type = 'file'; input.accept = '.json';
-  input.onchange = ev => {
-    const file = ev.target.files[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = e => {
-      try {
-        const data = JSON.parse(e.target.result);
-        const ents = data.entities || data;
-        if (!Array.isArray(ents)) throw new Error('Invalid format');
-        ENTITIES = ents;
-        nextId = Math.max(...ENTITIES.map(e => e.id), 40) + 1;
-        saveToLocal(); populateCountryFilter(); render();
-        setSyncStatus('ok', 'Imported ✓');
-      } catch(err) { alert('Import failed: ' + err.message); }
-    };
-    reader.readAsText(file);
-  };
-  input.click();
-}
 
 // ──────────────────────────────────────────────────────
 // INIT
