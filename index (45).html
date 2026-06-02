@@ -1,0 +1,1466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ideals Group — Legal Compliance Tracker</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #ffffff;
+    --bg2:       #f7f8fa;
+    --bg3:       #eef0f4;
+    --border:    #dde1e8;
+    --text:      #1a1d23;
+    --text2:     #5a6074;
+    --text3:     #9098ae;
+    --accent:    #2563eb;
+    --green:     #16a34a;
+    --green-bg:  #dcfce7;
+    --amber:     #b45309;
+    --amber-bg:  #fef3c7;
+    --red:       #b91c1c;
+    --red-bg:    #fee2e2;
+    --radius:    8px;
+    --radius-lg: 12px;
+    --shadow:    0 1px 4px rgba(0,0,0,.08);
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg2);
+    color: var(--text);
+    font-size: 13px;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  .header {
+    background: #0f1f3d;
+    color: #fff;
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 3px solid #2563eb;
+  }
+  .header-icon { font-size: 22px; }
+  .header-title { font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
+  .header-sub { font-size: 11px; color: #94a3b8; margin-top: 1px; }
+  .header-date { margin-left: auto; font-size: 11px; color: #94a3b8; }
+
+  /* ── Layout ── */
+  .layout { display: flex; gap: 0; min-height: calc(100vh - 54px); }
+  .sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    background: var(--bg);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 12px 0;
+    gap: 0;
+  }
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* ── Sidebar sections ── */
+  .s-section { padding: 8px 14px 4px; }
+  .s-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--text3); margin-bottom: 6px; }
+  .s-field { margin-bottom: 8px; }
+  .s-field label { display: block; font-size: 11px; color: var(--text2); margin-bottom: 3px; }
+  select, input[type=text], input[type=date] {
+    width: 100%; padding: 5px 8px; font-size: 12px;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg2); color: var(--text);
+    font-family: inherit; appearance: none;
+  }
+  select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+  .s-divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
+
+  /* ── KPI cards ── */
+  .kpis {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 10px; padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .kpi { background: var(--bg2); border-radius: var(--radius); padding: 10px 12px; border: 1px solid var(--border); position: relative; overflow: hidden; }
+  .kpi::before { content:''; position:absolute; top:0;left:0;right:0; height:3px; }
+  .kpi.total::before { background:#2563eb; }
+  .kpi.ok::before    { background:#16a34a; }
+  .kpi.soon::before  { background:#d97706; }
+  .kpi.over::before  { background:#dc2626; }
+  .kpi-n { font-size: 26px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+  .kpi.total .kpi-n { color: var(--text); }
+  .kpi.ok    .kpi-n { color: var(--green); }
+  .kpi.soon  .kpi-n { color: var(--amber); }
+  .kpi.over  .kpi-n { color: var(--red); }
+  .kpi-l { font-size: 10px; color: var(--text2); margin-top: 3px; text-transform: uppercase; letter-spacing: .04em; }
+
+  /* ── Reminders ── */
+  .reminders { padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--bg); }
+  .rem-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--text2); margin-bottom: 6px; }
+  .rem-list { display: flex; flex-direction: column; gap: 4px; }
+  .rem-item { padding: 5px 10px; border-radius: 6px; font-size: 12px; border-left: 3px solid; }
+  .rem-item.over { background: var(--red-bg);   color: var(--red);   border-color: #dc2626; }
+  .rem-item.soon { background: var(--amber-bg); color: var(--amber); border-color: #d97706; }
+  .rem-all-ok { font-size: 12px; color: var(--text2); display: flex; align-items: center; gap: 6px; }
+
+  /* ── Toolbar ── */
+  .toolbar {
+    padding: 8px 16px; display: flex; align-items: center; gap: 8px;
+    border-bottom: 1px solid var(--border); background: var(--bg);
+    flex-wrap: wrap;
+  }
+  .toolbar-info { font-size: 12px; color: var(--text2); flex: 1; }
+
+  /* ── Buttons ── */
+  .btn {
+    padding: 5px 12px; font-size: 12px; font-weight: 500;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg); color: var(--text);
+    cursor: pointer; font-family: inherit; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .btn:hover { background: var(--bg2); }
+  .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn.primary:hover { background: #1d4ed8; }
+  .btn.danger { background: var(--red-bg); color: var(--red); border-color: #fca5a5; }
+  .btn.danger:hover { background: #fecaca; }
+  .btn-icon { background: none; border: none; cursor: pointer; color: var(--text2); padding: 2px 5px; border-radius: 4px; font-size: 13px; }
+  .btn-icon:hover { background: var(--bg3); color: var(--text); }
+
+  /* ── Table ── */
+  .table-wrap { flex: 1; overflow: auto; }
+  table { width: 100%; border-collapse: collapse; background: var(--bg); }
+  th {
+    font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--text2); padding: 7px 10px; text-align: left;
+    border-bottom: 2px solid var(--border);
+    position: sticky; top: 0; background: var(--bg); z-index: 2;
+    white-space: nowrap; cursor: pointer; user-select: none;
+  }
+  th:hover { color: var(--text); }
+  th.sorted { color: var(--accent); }
+  td { padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:hover td { background: var(--bg2); }
+  tr.row-over td  { background: #fff5f5; }
+  tr.row-soon td  { background: #fffbeb; }
+
+  /* ── Status badge ── */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge.ok   { background: var(--green-bg); color: var(--green); }
+  .badge.soon { background: var(--amber-bg); color: var(--amber); }
+  .badge.over { background: var(--red-bg);   color: var(--red);   }
+  .badge.unk  { background: var(--bg3);       color: var(--text2); }
+
+  .src-tag { display: inline-block; padding: 1px 5px; border-radius: 4px; font-size: 10px; font-family: monospace; background: var(--bg3); color: var(--text2); border: 1px solid var(--border); }
+  .rule-hint { display: block; font-size: 10px; color: var(--text3); margin-top: 1px; }
+
+  /* ── Edit row ── */
+  .edit-row td { background: #eff6ff !important; }
+  .edit-row input, .edit-row select { font-size: 12px; padding: 3px 5px; width: 100%; }
+
+  /* ── Add entity panel ── */
+  .add-panel {
+    position: fixed; right: 0; top: 0; bottom: 0; width: 320px;
+    background: var(--bg); border-left: 1px solid var(--border);
+    box-shadow: -4px 0 16px rgba(0,0,0,.1);
+    z-index: 100; display: flex; flex-direction: column;
+    transform: translateX(100%); transition: transform .22s ease;
+  }
+  .add-panel.open { transform: translateX(0); }
+  .add-panel-hd { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; }
+  .add-panel-hd h3 { font-size: 14px; font-weight: 600; flex: 1; }
+  .add-panel-body { flex: 1; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+  .add-panel-ft { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+  .form-field label { display: block; font-size: 11px; font-weight: 500; color: var(--text2); margin-bottom: 4px; }
+  .form-field input, .form-field select { font-size: 13px; }
+  .form-field .hint { font-size: 10px; color: var(--text3); margin-top: 2px; }
+  .error-msg { font-size: 11px; color: var(--red); background: var(--red-bg); padding: 5px 8px; border-radius: 4px; }
+
+  /* ── Overlay ── */
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.3); z-index: 99; display: none; }
+  .overlay.open { display: block; }
+
+  /* ── Empty state ── */
+  .empty-state { text-align: center; padding: 40px; color: var(--text2); }
+  .empty-state p { font-size: 13px; }
+
+  /* ── Footer ── */
+  .footer { padding: 6px 16px; font-size: 10px; color: var(--text3); border-top: 1px solid var(--border); background: var(--bg); }
+
+  /* ── Section divider row in table ── */
+  .section-row td {
+    background: #eef3fb;
+    font-size: 11px; font-weight: 600;
+    color: #2563eb;
+    padding: 6px 10px;
+    border-top: 2px solid #c7d8f5;
+    border-bottom: 1px solid #c7d8f5;
+    letter-spacing: .02em;
+  }
+
+  /* ── Grouped table header styles ── */
+  .th-group-internal {
+    background: #ede9fe; color: #5b21b6;
+    text-align: center; font-size: 10px; font-weight: 700;
+    letter-spacing: .06em; text-transform: uppercase;
+    border-bottom: 2px solid #c4b5fd;
+    padding: 6px 8px;
+  }
+  .th-group-external {
+    background: #dcfce7; color: #166534;
+    text-align: center; font-size: 10px; font-weight: 700;
+    letter-spacing: .06em; text-transform: uppercase;
+    border-bottom: 2px solid #86efac;
+    padding: 6px 8px;
+  }
+  .th-sub-internal { background: #f5f3ff; border-bottom: 2px solid #c4b5fd; }
+  .th-sub-external { background: #f0fdf4; border-bottom: 2px solid #86efac; }
+  .obl-none { color: var(--text3); text-align:center; }
+  .obl-type { font-size:12px; }
+  .obl-dl   { font-size:12px; }
+  .obl-days { font-size:12px; padding-right:10px; }
+  .obl-status { }
+
+  /* ── Internal action tag ── */
+  .internal-tag {
+    display: inline-block; margin-left: 5px;
+    padding: 1px 5px; border-radius: 3px;
+    font-size: 9px; font-weight: 600;
+    background: #f0f4ff; color: #3730a3;
+    border: 1px solid #c7d2fe;
+    vertical-align: middle;
+  }
+
+  /* ── Biennial tag ── */
+  .biennial-tag {
+    display: inline-block; margin-left: 5px;
+    padding: 1px 5px; border-radius: 4px;
+    font-size: 9px; font-weight: 600;
+    background: #ede9fe; color: #5b21b6;
+    border: 1px solid #c4b5fd;
+    vertical-align: middle;
+  }
+
+  /* ── Authority hint under filing type ── */
+  .auth-hint { display: block; font-size: 10px; color: var(--text3); margin-top: 1px; }
+
+  /* ── Sync status indicator ── */
+  .sync-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:5px; }
+  .sync-dot.ok      { background:#16a34a; }
+  .sync-dot.saving  { background:#d97706; animation: pulse .8s infinite; }
+  .sync-dot.error   { background:#b91c1c; }
+  .sync-dot.offline { background:#9098ae; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+  .sync-label { font-size:11px; color:#94a3b8; }
+
+
+  .modal-box {
+    background:var(--bg); border-radius:var(--radius-lg);
+    box-shadow:0 8px 40px rgba(0,0,0,.25);
+    width:480px; max-width:95vw;
+    display:flex; flex-direction:column;
+  }
+  .modal-hd {
+    padding:20px 24px 16px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; gap:12px;
+  }
+  .modal-hd h2 { font-size:16px; font-weight:600; flex:1; }
+  .modal-body { padding:20px 24px; display:flex; flex-direction:column; gap:14px; }
+  .modal-ft   { padding:14px 24px; border-top:1px solid var(--border); display:flex; gap:8px; justify-content:flex-end; }
+  .modal-field label { display:block; font-size:11px; font-weight:600; color:var(--text2); margin-bottom:5px; text-transform:uppercase; letter-spacing:.04em; }
+  .modal-field input { width:100%; padding:8px 10px; font-size:13px; border:1px solid var(--border); border-radius:var(--radius); background:var(--bg2); color:var(--text); font-family:inherit; }
+  .modal-field input:focus { outline:2px solid var(--accent); border-color:var(--accent); }
+  .modal-hint { font-size:12px; color:var(--text2); line-height:1.6; }
+  .modal-hint a { color:var(--accent); }
+  .modal-hint code { background:var(--bg3); padding:1px 5px; border-radius:3px; font-family:monospace; font-size:11px; }
+  .modal-error { font-size:12px; color:var(--red); background:var(--red-bg); padding:7px 10px; border-radius:6px; display:none; }
+  .modal-success { font-size:12px; color:var(--green); background:var(--green-bg); padding:7px 10px; border-radius:6px; display:none; line-height:1.6; }
+  .share-url-box { background:var(--bg3); border:1px solid var(--border); border-radius:6px; padding:8px 10px; font-size:11px; font-family:monospace; word-break:break-all; color:var(--text2); cursor:pointer; }
+  .share-url-box:hover { background:var(--bg2); }
+  .tab-btns { display:flex; gap:0; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+  .tab-btn { flex:1; padding:7px; font-size:12px; font-weight:500; border:none; background:var(--bg2); color:var(--text2); cursor:pointer; font-family:inherit; }
+  .tab-btn.active { background:var(--accent); color:#fff; }
+  .tab-pane { display:none; }
+  .tab-pane.active { display:flex; flex-direction:column; gap:12px; }
+
+  /* ── Filing Status 2026 badges ── */
+  .fs-badge {
+    display: inline-block; padding: 3px 9px; border-radius: 20px;
+    font-size: 11px; font-weight: 600; cursor: pointer;
+    user-select: none; white-space: nowrap;
+    transition: opacity .15s;
+  }
+  .fs-badge:hover { opacity: .75; }
+  .fs-badge.submitted { background: var(--green-bg); color: var(--green); }
+  .fs-badge.pending   { background: var(--amber-bg); color: var(--amber); }
+  .fs-badge.na        { background: var(--bg3);      color: var(--text3); }
+  .fs-badge.unset     { background: var(--bg3);      color: var(--text3);
+                        border: 1px dashed var(--border); }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <span class="header-icon">⚖️</span>
+  <div>
+    <div class="header-title">Ideals Group — Legal Compliance Tracker</div>
+    <div class="header-sub">Annual filing obligations · Multi-jurisdiction</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:16px;margin-left:auto">
+    <div id="sync-status" style="display:flex;align-items:center;cursor:pointer" title="Cloud sync status">
+      <span class="sync-dot offline" id="sync-dot"></span>
+      <span class="sync-label" id="sync-label">Not connected</span>
+    </div>
+    <div class="header-date" id="hdr-date"></div>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="s-section">
+      <div class="s-label">Filters</div>
+      <div class="s-field">
+        <label>Jurisdiction</label>
+        <select id="f-country" onchange="render()"><option value="">All</option></select>
+      </div>
+      <div class="s-field">
+        <label>Status</label>
+        <select id="f-status" onchange="render()">
+          <option value="">All</option>
+          <option value="over">⚠ Overdue</option>
+          <option value="soon">Due soon (≤30d)</option>
+          <option value="ok">OK</option>
+        </select>
+      </div>
+
+      <div class="s-field">
+        <label>Section</label>
+        <select id="f-section" onchange="render()">
+          <option value="">All sections</option>
+          <option value="intl">🌍 International entities</option>
+          <option value="us">🇺🇸 US State filings</option>
+        </select>
+      </div>
+      <div class="s-field">
+        <label>Filing Status 2026</label>
+        <select id="f-fs2026" onchange="render()">
+          <option value="">All</option>
+          <option value="submitted">✅ Submitted</option>
+          <option value="pending">⏳ Pending</option>
+          <option value="na">— N/A</option>
+          <option value="">Not set</option>
+        </select>
+      </div>
+    </div>
+
+    <hr class="s-divider">
+
+    <div class="s-section">
+      <div class="s-label">Sort</div>
+      <div class="s-field">
+        <select id="f-sort" onchange="render()">
+          <option value="asc">Deadline — soonest first</option>
+          <option value="desc">Deadline — latest first</option>
+          <option value="name">Entity name A→Z</option>
+          <option value="country">Country A→Z</option>
+        </select>
+      </div>
+    </div>
+
+    <hr class="s-divider">
+
+    <div class="s-section">
+      <div class="s-label">Actions</div>
+      <div class="s-field">
+        <button class="btn primary" style="width:100%" onclick="openAddPanel()">＋ Add entity</button>
+      </div>
+      <div class="s-field">
+        <button class="btn" style="width:100%" onclick="exportCSV()">⬇ Export CSV</button>
+      </div>
+      <div class="s-field">
+        <button class="btn" style="width:100%;background:#eff6ff;border-color:#93c5fd;color:#1d4ed8" onclick="forceSyncToCloud()">☁️ Push to cloud</button>
+      </div>
+    </div>
+
+    <div style="flex:1"></div>
+    <div style="padding:10px 14px;font-size:10px;color:var(--text3);line-height:1.5">
+      <b>XLS</b> = from Excel file<br>
+      <b>USR</b> = from entity list<br>
+      Click any row to edit.
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <!-- KPIs -->
+    <div class="kpis" id="kpis"></div>
+
+    <!-- Reminders -->
+    <div class="reminders">
+      <div class="rem-title">🔔 Reminders</div>
+      <div class="rem-list" id="reminders"></div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <span class="toolbar-info" id="toolbar-info"></span>
+      <button class="btn" onclick="clearFilters()">✕ Clear filters</button>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrap">
+      <table>
+         <thead>
+           <tr>
+             <th rowspan="2" onclick="toggleSort('name')" style="vertical-align:bottom;min-width:150px">Entity ↕</th>
+             <th rowspan="2" onclick="toggleSort('country')" style="vertical-align:bottom">Country ↕</th>
+             <th colspan="5" class="th-group-internal">📋 INTERNAL ACTION</th>
+             <th colspan="5" class="th-group-external">📤 EXTERNAL FILING</th>
+             <th rowspan="2" style="vertical-align:bottom;text-align:center">Src</th>
+             <th rowspan="2" style="vertical-align:bottom;text-align:center">Edit</th>
+           </tr>
+           <tr>
+             <th class="th-sub-internal">Type</th>
+             <th class="th-sub-internal" onclick="toggleSort('dl')">Deadline ↕</th>
+             <th class="th-sub-internal" style="text-align:right">Days</th>
+             <th class="th-sub-internal">Status</th>
+             <th class="th-sub-internal" style="text-align:center">Filed 2026</th>
+             <th class="th-sub-external">Type</th>
+             <th class="th-sub-external" onclick="toggleSort('dl')">Deadline ↕</th>
+             <th class="th-sub-external" style="text-align:right">Days</th>
+             <th class="th-sub-external">Status</th>
+             <th class="th-sub-external" style="text-align:center">Filed 2026</th>
+           </tr>
+         </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="footer" id="footer-info"></div>
+  </main>
+</div>
+
+<!-- Add / Edit panel -->
+<div class="overlay" id="overlay" onclick="closeAddPanel()"></div>
+<div class="add-panel" id="add-panel">
+  <div class="add-panel-hd">
+    <h3 id="panel-title">Add / Edit entity</h3>
+    <button class="btn-icon" onclick="closeAddPanel()">✕</button>
+  </div>
+  <div class="add-panel-body">
+    <div id="panel-error" style="display:none"></div>
+
+    <!-- ── Entity info ── -->
+    <div class="form-field">
+      <label>Entity name *</label>
+      <input id="p-name" type="text" placeholder="e.g. Ideals Poland sp. z o.o.">
+    </div>
+    <div class="form-field">
+      <label>Country / Jurisdiction *</label>
+      <input id="p-country" type="text" placeholder="e.g. Poland">
+    </div>
+    <div class="form-field" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div>
+        <label style="display:block;font-size:11px;font-weight:500;color:var(--text2);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">Section</label>
+        <select id="p-section">
+          <option value="intl">🌍 International</option>
+          <option value="us">🇺🇸 US State</option>
+        </select>
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:500;color:var(--text2);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">Source</label>
+        <select id="p-src"><option>USR</option><option>XLS</option></select>
+      </div>
+    </div>
+
+    <!-- ── Internal Action ── -->
+    <div style="border:1px solid #c4b5fd;border-radius:8px;padding:10px 12px;background:#f5f3ff">
+      <div style="font-size:11px;font-weight:700;color:#5b21b6;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">📋 Internal Action</div>
+      <div class="form-field">
+        <label>Type <span style="font-weight:400;color:var(--text3)">(leave blank if none)</span></label>
+        <input id="p-int-type" type="text" placeholder="e.g. Written shareholder resolution">
+      </div>
+      <div class="form-field">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="checkbox" id="p-int-fixed" onchange="toggleIntFixed()" style="width:auto;margin:0">
+          Fixed-rule deadline (Malta, UK…)
+        </label>
+      </div>
+      <div id="int-fixed-fields" style="display:none;flex-direction:column;gap:6px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <div class="form-field" style="margin:0">
+            <label>Base date (MM-DD)</label>
+            <input id="p-int-base" type="text" placeholder="07-30">
+          </div>
+          <div class="form-field" style="margin:0">
+            <label>Rule</label>
+            <input id="p-int-rule" type="text" value="base_date + 42 days">
+          </div>
+        </div>
+      </div>
+      <div id="int-anniv-fields" style="display:flex;flex-direction:column;gap:6px">
+        <div class="form-field" style="margin:0">
+          <label>Last filing date</label>
+          <input id="p-int-last" type="date">
+        </div>
+        <div class="form-field" style="margin:0">
+          <label>Incorporation date</label>
+          <input id="p-int-incorp" type="date">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px">
+        <div class="form-field" style="margin:0">
+          <label>Cycle</label>
+          <select id="p-int-period">
+            <option value="12">Annual</option>
+            <option value="24">Biennial</option>
+          </select>
+        </div>
+        <div class="form-field" style="margin:0">
+          <label>Filed 2026</label>
+          <select id="p-int-status2026">
+            <option value="">— Not set</option>
+            <option value="submitted">✅ Done</option>
+            <option value="pending">⏳ Pending</option>
+            <option value="na">N/A</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-field" style="margin-top:6px">
+        <label>Authority</label>
+        <input id="p-int-authority" type="text" placeholder="e.g. Internal">
+      </div>
+    </div>
+
+    <!-- ── External Filing ── -->
+    <div style="border:1px solid #86efac;border-radius:8px;padding:10px 12px;background:#f0fdf4">
+      <div style="font-size:11px;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">📤 External Filing</div>
+      <div class="form-field">
+        <label>Type <span style="font-weight:400;color:var(--text3)">(leave blank if none)</span></label>
+        <input id="p-ext-type" type="text" placeholder="e.g. Annual Return (Form B1)">
+      </div>
+      <div class="form-field">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="checkbox" id="p-ext-fixed" onchange="toggleExtFixed()" style="width:auto;margin:0">
+          Fixed-rule deadline (Malta, UK…)
+        </label>
+      </div>
+      <div id="ext-fixed-fields" style="display:none;flex-direction:column;gap:6px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <div class="form-field" style="margin:0">
+            <label>Base date (MM-DD)</label>
+            <input id="p-ext-base" type="text" placeholder="07-30">
+          </div>
+          <div class="form-field" style="margin:0">
+            <label>Rule</label>
+            <input id="p-ext-rule" type="text" value="base_date + 42 days">
+          </div>
+        </div>
+      </div>
+      <div id="ext-anniv-fields" style="display:flex;flex-direction:column;gap:6px">
+        <div class="form-field" style="margin:0">
+          <label>Last filing date</label>
+          <input id="p-ext-last" type="date">
+        </div>
+        <div class="form-field" style="margin:0">
+          <label>Incorporation date</label>
+          <input id="p-ext-incorp" type="date">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px">
+        <div class="form-field" style="margin:0">
+          <label>Cycle</label>
+          <select id="p-ext-period">
+            <option value="12">Annual</option>
+            <option value="24">Biennial</option>
+          </select>
+        </div>
+        <div class="form-field" style="margin:0">
+          <label>Filed 2026</label>
+          <select id="p-ext-status2026">
+            <option value="">— Not set</option>
+            <option value="submitted">✅ Submitted</option>
+            <option value="pending">⏳ Pending</option>
+            <option value="na">N/A</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-field" style="margin-top:6px">
+        <label>Authority</label>
+        <input id="p-ext-authority" type="text" placeholder="e.g. Malta Business Registry">
+      </div>
+    </div>
+
+  </div>
+  <div class="add-panel-ft">
+    <button class="btn primary" id="panel-save-btn" onclick="saveEntity()">Save entity</button>
+    <button class="btn" onclick="closeAddPanel()">Cancel</button>
+    <button class="btn danger" id="panel-delete-btn" style="display:none;margin-left:auto" onclick="deleteEntity()">Delete</button>
+  </div>
+</div>
+
+
+<script>
+// ──────────────────────────────────────────────────────
+// DATA
+// section: "intl" = International entity | "us" = US State filing
+// period:  12 = annual | 24 = biennial
+// ──────────────────────────────────────────────────────
+let ENTITIES = [
+  // ONE ROW PER COMPANY. int_* = internal obligation, ext_* = external filing.
+  // Empty string "" = not applicable for that company.
+
+  // ── MALTA (both: written resolution + Annual Return Form B1, same deadline)
+  {id:1,  name:"Ideals Holding Limited",    country:"Malta", section:"intl", src:"XLS",
+   int_type:"Written shareholder resolution", int_base:"07-30", int_rule:"base_date + 42 days", int_period:12, int_last:"", int_incorp:"", int_authority:"Internal", int_status2026:"",
+   ext_type:"Annual Return (Form B1)",        ext_base:"07-30", ext_rule:"base_date + 42 days", ext_period:12, ext_last:"", ext_incorp:"", ext_authority:"Malta Business Registry", ext_status2026:""},
+  {id:2,  name:"Ideals Solutions Operations Ltd", country:"Malta", section:"intl", src:"XLS",
+   int_type:"Written shareholder resolution", int_base:"07-30", int_rule:"base_date + 42 days", int_period:12, int_last:"", int_incorp:"", int_authority:"Internal", int_status2026:"",
+   ext_type:"Annual Return (Form B1)",        ext_base:"07-30", ext_rule:"base_date + 42 days", ext_period:12, ext_last:"", ext_incorp:"", ext_authority:"Malta Business Registry", ext_status2026:""},
+  {id:3,  name:"Glaucous Holdings Limited",  country:"Malta", section:"intl", src:"XLS",
+   int_type:"Written shareholder resolution", int_base:"06-08", int_rule:"base_date + 42 days", int_period:12, int_last:"", int_incorp:"", int_authority:"Internal", int_status2026:"",
+   ext_type:"Annual Return (Form B1)",        ext_base:"06-08", ext_rule:"base_date + 42 days", ext_period:12, ext_last:"", ext_incorp:"", ext_authority:"Malta Business Registry", ext_status2026:""},
+  {id:4,  name:"Pragmatech Limited",         country:"Malta", section:"intl", src:"XLS",
+   int_type:"Written shareholder resolution", int_base:"07-01", int_rule:"base_date + 42 days", int_period:12, int_last:"", int_incorp:"", int_authority:"Internal", int_status2026:"",
+   ext_type:"Annual Return (Form B1)",        ext_base:"07-01", ext_rule:"base_date + 42 days", ext_period:12, ext_last:"", ext_incorp:"", ext_authority:"Malta Business Registry", ext_status2026:""},
+  {id:5,  name:"Pragmatech First Foundation Ltd", country:"Malta", section:"intl", src:"XLS",
+   int_type:"Written shareholder resolution", int_base:"12-20", int_rule:"base_date + 42 days", int_period:12, int_last:"", int_incorp:"", int_authority:"Internal", int_status2026:"",
+   ext_type:"Annual Return (Form B1)",        ext_base:"12-20", ext_rule:"base_date + 42 days", ext_period:12, ext_last:"", ext_incorp:"", ext_authority:"Malta Business Registry", ext_status2026:""},
+  {id:6,  name:"Hurma Holding Limited",      country:"Malta", section:"intl", src:"XLS",
+   int_type:"Written shareholder resolution", int_base:"06-16", int_rule:"base_date + 42 days", int_period:12, int_last:"", int_incorp:"", int_authority:"Internal", int_status2026:"",
+   ext_type:"Annual Return (Form B1)",        ext_base:"06-16", ext_rule:"base_date + 42 days", ext_period:12, ext_last:"", ext_incorp:"", ext_authority:"Malta Business Registry", ext_status2026:""},
+
+  // ── UK (external only: Confirmation Statement)
+  {id:7,  name:"Ideals Solutions Group Ltd",       country:"United Kingdom", section:"intl", src:"XLS",
+   int_type:"", int_base:"", int_rule:"", int_period:12, int_last:"", int_incorp:"", int_authority:"", int_status2026:"",
+   ext_type:"Confirmation Statement", ext_base:"09-23", ext_rule:"base_date + 14 days", ext_period:12, ext_last:"", ext_incorp:"", ext_authority:"Companies House", ext_status2026:""},
+  {id:8,  name:"Ideals Group Holding Limited",     country:"United Kingdom", section:"intl", src:"XLS",
+   int_type:"", int_base:"", int_rule:"", int_period:12, int_last:"", int_incorp:"", int_authority:"", int_status2026:"",
+   ext_type:"Confirmation Statement", ext_base:"11-29", ext_rule:"base_date + 14 days", ext_period:12, ext_last:"", ext_incorp:"", ext_authority:"Companies House", ext_status2026:""},
+
+  // ── HONG KONG (external only: Form NAR1)
+  {id:9,  name:"Ideals Solutions Ltd (FinBuzz)",   country:"Hong Kong", section:"intl", src:"XLS",
+   int_type:"", int_base:"", int_rule:"", int_period:12, int_last:"", int_incorp:"", int_authority:"", int_status2026:"",
+   ext_type:"Form NAR1 (Annual Return)", ext_base:"10-15", ext_rule:"base_date + 42 days", ext_period:12, ext_last:"", ext_incorp:"", ext_authority:"Companies Registry HK", ext_status2026:""},
+
+  // ── USA Dealigence domestic (external only)
+  {id:10, name:"Dealigence Inc. dba Ideals Solutions Group", country:"United States", section:"intl", src:"USR",
+   int_type:"", int_base:"", int_rule:"", int_period:12, int_last:"", int_incorp:"", int_authority:"", int_status2026:"",
+   ext_type:"Annual Report", ext_base:"", ext_rule:"", ext_period:12, ext_last:"2026-02-09", ext_incorp:"2012-02-09", ext_authority:"", ext_status2026:"submitted"},
+
+  // ── GERMANY (internal only — no external registry filing required)
+  {id:35, name:"Ideals Group GmbH",               country:"Germany", section:"intl", src:"USR",
+   int_type:"Written shareholder resolution + Annual Report", int_base:"06-30", int_rule:"base_date + 0 days", int_period:12, int_last:"", int_incorp:"", int_authority:"Internal", int_status2026:"",
+   ext_type:"", ext_base:"", ext_rule:"", ext_period:12, ext_last:"", ext_incorp:"", ext_authority:"", ext_status2026:""},
+  {id:36, name:"Ideals Solutions Germany GmbH",   country:"Germany", section:"intl", src:"USR",
+   int_type:"Written shareholder resolution (Gesellschafterbeschluss)", int_base:"06-30", int_rule:"base_date + 0 days", int_period:12, int_last:"", int_incorp:"", int_authority:"Internal", int_status2026:"",
+   ext_type:"", ext_base:"", ext_rule:"", ext_period:12, ext_last:"", ext_incorp:"", ext_authority:"", ext_status2026:""},
+
+  // ── POLAND (internal: resolution 30 Jun | external: KRS filing 15 Jul)
+  {id:13, name:"Ideals Poland sp. z o.o.",         country:"Poland", section:"intl", src:"USR",
+   int_type:"Written shareholder resolution", int_base:"06-30", int_rule:"base_date + 0 days", int_period:12, int_last:"", int_incorp:"", int_authority:"Internal", int_status2026:"",
+   ext_type:"KRS filing", ext_base:"07-15", ext_rule:"base_date + 0 days", ext_period:12, ext_last:"", ext_incorp:"", ext_authority:"KRS (National Court Register)", ext_status2026:""},
+
+  // ── SPAIN (internal: resolution 30 Jun | external: Registro Mercantil 30 Jul)
+  {id:14, name:"Ideals Solutions Spain, S.L.",     country:"Spain", section:"intl", src:"USR",
+   int_type:"Written resolution (Decisión del socio único)", int_base:"06-30", int_rule:"base_date + 0 days", int_period:12, int_last:"", int_incorp:"", int_authority:"Internal", int_status2026:"",
+   ext_type:"Registro Mercantil filing", ext_base:"07-30", ext_rule:"base_date + 0 days", ext_period:12, ext_last:"", ext_incorp:"", ext_authority:"Registro Mercantil", ext_status2026:""},
+
+  // ── INDIA (internal: AGM 30 Sep | external: DIR-3 KYC 30 Sep + MGT-7 29 Nov)
+  {id:15, name:"Ethosdata India Private Ltd",      country:"India", section:"intl", src:"USR",
+   int_type:"AGM (Annual General Meeting)", int_base:"09-30", int_rule:"base_date + 0 days", int_period:12, int_last:"", int_incorp:"", int_authority:"Internal", int_status2026:"",
+   ext_type:"DIR-3 KYC (30 Sep) + MGT-7 Annual Return (29 Nov)", ext_base:"09-30", ext_rule:"base_date + 0 days", ext_period:12, ext_last:"", ext_incorp:"", ext_authority:"MCA / RoC", ext_status2026:""},
+
+  // ── BRAZIL (internal only: written resolution 30 Apr)
+  {id:16, name:"Ideals Do Brasil Serviços Ltda",   country:"Brazil", section:"intl", src:"USR",
+   int_type:"Written shareholder resolution", int_base:"04-30", int_rule:"base_date + 0 days", int_period:12, int_last:"", int_incorp:"", int_authority:"Internal", int_status2026:"",
+   ext_type:"", ext_base:"", ext_rule:"", ext_period:12, ext_last:"", ext_incorp:"", ext_authority:"", ext_status2026:""},
+
+  // ── AUSTRALIA (external only: ASIC Annual Review)
+  {id:17, name:"Ideals Solutions APAC PTY LTD",    country:"Australia", section:"intl", src:"USR",
+   int_type:"", int_base:"", int_rule:"", int_period:12, int_last:"", int_incorp:"", int_authority:"", int_status2026:"",
+   ext_type:"ASIC Annual Review", ext_base:"10-28", ext_rule:"base_date + 0 days", ext_period:12, ext_last:"", ext_incorp:"", ext_authority:"ASIC", ext_status2026:""},
+
+  // ── CHINA (external only: Annual Report SAMR 30 Jun)
+  {id:31, name:"Ideals Business Technology Solutions (Shanghai) Co., Ltd.",                   country:"China", section:"intl", src:"USR",
+   int_type:"", int_base:"", int_rule:"", int_period:12, int_last:"", int_incorp:"", int_authority:"", int_status2026:"",
+   ext_type:"Annual Report (SAMR)", ext_base:"06-30", ext_rule:"base_date + 0 days", ext_period:12, ext_last:"", ext_incorp:"", ext_authority:"SAMR", ext_status2026:""},
+  {id:32, name:"Ideals Business Technology Solutions (Shanghai) Co., Ltd. — Beijing Branch",  country:"China", section:"intl", src:"USR",
+   int_type:"", int_base:"", int_rule:"", int_period:12, int_last:"", int_incorp:"", int_authority:"", int_status2026:"",
+   ext_type:"Annual Report (SAMR)", ext_base:"06-30", ext_rule:"base_date + 0 days", ext_period:12, ext_last:"", ext_incorp:"", ext_authority:"SAMR", ext_status2026:""},
+  {id:33, name:"Ideals Business Technology Solutions (Shanghai) Co., Ltd. — Shenzhen Branch", country:"China", section:"intl", src:"USR",
+   int_type:"", int_base:"", int_rule:"", int_period:12, int_last:"", int_incorp:"", int_authority:"", int_status2026:"",
+   ext_type:"Annual Report (SAMR)", ext_base:"06-30", ext_rule:"base_date + 0 days", ext_period:12, ext_last:"", ext_incorp:"", ext_authority:"SAMR", ext_status2026:""},
+  {id:34, name:"Ideals Business Technology Solutions (Shanghai) Co., Ltd. — Chengdu Branch",  country:"China", section:"intl", src:"USR",
+   int_type:"", int_base:"", int_rule:"", int_period:12, int_last:"", int_incorp:"", int_authority:"", int_status2026:"",
+   ext_type:"Annual Report (SAMR)", ext_base:"06-30", ext_rule:"base_date + 0 days", ext_period:12, ext_last:"", ext_incorp:"", ext_authority:"SAMR", ext_status2026:""},
+
+  // ── US STATE FILINGS — Dealigence Inc. (external only: foreign entity registrations)
+  {id:18, name:"Dealigence — Illinois",             country:"USA · Illinois",         section:"us", src:"XLS",
+   int_type:"", int_base:"", int_rule:"", int_period:12, int_last:"", int_incorp:"", int_authority:"", int_status2026:"",
+   ext_type:"Annual Report", ext_base:"", ext_rule:"", ext_period:12, ext_last:"2025-07-01", ext_incorp:"", ext_authority:"Illinois Secretary of State", ext_status2026:""},
+  {id:19, name:"Dealigence — California",           country:"USA · California",       section:"us", src:"XLS",
+   int_type:"", int_base:"", int_rule:"", int_period:12, int_last:"", int_incorp:"", int_authority:"", int_status2026:"",
+   ext_type:"Statement of Information", ext_base:"", ext_rule:"", ext_period:12, ext_last:"2025-07-31", ext_incorp:"", ext_authority:"CA Secretary of State", ext_status2026:""},
+  {id:20, name:"Dealigence — Virginia",             country:"USA · Virginia",         section:"us", src:"XLS",
+   int_type:"", int_base:"", int_rule:"", int_period:12, int_last:"", int_incorp:"", int_authority:"", int_status2026:"",
+   ext_type:"Annual Registration", ext_base:"", ext_rule:"", ext_period:12, ext_last:"2026-02-09", ext_incorp:"", ext_authority:"Virginia SCC", ext_status2026:""},
+  {id:21, name:"Dealigence — Massachusetts",        country:"USA · Massachusetts",    section:"us", src:"XLS",
+   int_type:"", int_base:"", int_rule:"", int_period:12, int_last:"", int_incorp:"", int_authority:"", int_status2026:"",
+   ext_type:"Annual Report", ext_base:"", ext_rule:"", ext_period:12, ext_last:"2026-03-15", ext_incorp:"", ext_authority:"MA Secretary of State", ext_status2026:""},
+  {id:22, name:"Dealigence — Georgia",              country:"USA · Georgia",          section:"us", src:"XLS",
+   int_type:"", int_base:"", int_rule:"", int_period:12, int_last:"", int_incorp:"", int_authority:"", int_status2026:"",
+   ext_type:"Annual Registration", ext_base:"", ext_rule:"", ext_period:12, ext_last:"2026-04-01", ext_incorp:"", ext_authority:"Georgia Secretary of State", ext_status2026:""},
+  {id:23, name:"Dealigence — Tennessee",            country:"USA · Tennessee",        section:"us", src:"XLS",
+   int_type:"", int_base:"", int_rule:"", int_period:12, int_last:"", int_incorp:"", int_authority:"", int_status2026:"",
+   ext_type:"Annual Report", ext_base:"", ext_rule:"", ext_period:12, ext_last:"2026-04-01", ext_incorp:"", ext_authority:"Tennessee Secretary of State", ext_status2026:""},
+  {id:24, name:"Dealigence — Florida",              country:"USA · Florida",          section:"us", src:"XLS",
+   int_type:"", int_base:"", int_rule:"", int_period:12, int_last:"", int_incorp:"", int_authority:"", int_status2026:"",
+   ext_type:"Annual Report", ext_base:"", ext_rule:"", ext_period:12, ext_last:"2026-04-08", ext_incorp:"", ext_authority:"FL Dept. of State", ext_status2026:""},
+  {id:25, name:"Dealigence — North Carolina",       country:"USA · North Carolina",   section:"us", src:"XLS",
+   int_type:"", int_base:"", int_rule:"", int_period:12, int_last:"", int_incorp:"", int_authority:"", int_status2026:"",
+   ext_type:"Annual Report", ext_base:"", ext_rule:"", ext_period:12, ext_last:"2026-04-15", ext_incorp:"", ext_authority:"NC Secretary of State", ext_status2026:""},
+  {id:26, name:"Dealigence — Texas",                country:"USA · Texas",            section:"us", src:"XLS",
+   int_type:"", int_base:"", int_rule:"", int_period:12, int_last:"", int_incorp:"", int_authority:"", int_status2026:"",
+   ext_type:"Public Information Report", ext_base:"", ext_rule:"", ext_period:12, ext_last:"2026-05-15", ext_incorp:"", ext_authority:"Texas Comptroller", ext_status2026:""},
+  {id:27, name:"Dealigence — New Jersey",           country:"USA · New Jersey",       section:"us", src:"XLS",
+   int_type:"", int_base:"", int_rule:"", int_period:12, int_last:"", int_incorp:"", int_authority:"", int_status2026:"",
+   ext_type:"Annual Report", ext_base:"", ext_rule:"", ext_period:12, ext_last:"2026-04-15", ext_incorp:"", ext_authority:"NJ Division of Revenue", ext_status2026:""},
+  {id:28, name:"Dealigence — District of Columbia", country:"USA · DC",               section:"us", src:"XLS",
+   int_type:"", int_base:"", int_rule:"", int_period:12, int_last:"", int_incorp:"", int_authority:"", int_status2026:"",
+   ext_type:"Biennial Report", ext_base:"", ext_rule:"", ext_period:24, ext_last:"2025-04-01", ext_incorp:"", ext_authority:"DC DCRA", ext_status2026:""},
+  {id:29, name:"Dealigence — New York",             country:"USA · New York",         section:"us", src:"XLS",
+   int_type:"", int_base:"", int_rule:"", int_period:12, int_last:"", int_incorp:"", int_authority:"", int_status2026:"",
+   ext_type:"Biennial Statement", ext_base:"", ext_rule:"", ext_period:24, ext_last:"2025-09-30", ext_incorp:"", ext_authority:"NY Department of State", ext_status2026:""},
+  {id:30, name:"Dealigence — Utah",                 country:"USA · Utah",             section:"us", src:"XLS",
+   int_type:"", int_base:"", int_rule:"", int_period:12, int_last:"", int_incorp:"", int_authority:"", int_status2026:"",
+   ext_type:"Annual Report", ext_base:"", ext_rule:"", ext_period:12, ext_last:"", ext_incorp:"2026-04-29", ext_authority:"Utah Div. of Corporations", ext_status2026:""},
+];
+let nextId = 41;
+
+// ── MASTER_ENTITIES: canonical built-in list used by "Push latest data to cloud"
+// This is always the up-to-date hardcoded version from the developer.
+const MASTER_ENTITIES = JSON.parse(JSON.stringify(ENTITIES));
+
+// Push the built-in master list to cloud (overwrites whatever JSONBin has stored)
+async function pushLatestToCloud() {
+  if (!CLOUD.apiKey || !CLOUD.binId) {
+    alert('Not connected to cloud. Please connect first via the sync indicator in the header.');
+    return;
+  }
+  if (!confirm('This will overwrite the cloud data with the latest built-in entity list.\nAny manual changes stored in the cloud will be lost.\n\nContinue?')) return;
+  ENTITIES = JSON.parse(JSON.stringify(MASTER_ENTITIES));
+  nextId = Math.max(...ENTITIES.map(e => e.id)) + 1;
+  populateCountryFilter();
+  render();
+  await saveToCloud();
+  alert('✅ Cloud updated with latest entity data!');
+}
+
+let editingId = null;
+
+// ──────────────────────────────────────────────────────
+// DEADLINE + STATUS LOGIC
+// ──────────────────────────────────────────────────────
+function addMonths(d, m) { const r = new Date(d); r.setMonth(r.getMonth() + m); return r; }
+
+// Deadline calculator — respects isDone:
+// If deadline passed AND not done → stays overdue (no auto-roll to next year)
+// If deadline passed AND done     → shows next year's deadline
+function calcDeadlineFor(base, rule, period, last, incorp, isDone) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const p = period || 12;
+
+  if (base && rule) {
+    const m = rule.match(/\+\s*(\d+)/);
+    const off = m ? +m[1] : 0;
+
+    // Current year deadline
+    const dlThis = (() => {
+      try { const bd = new Date(today.getFullYear() + "-" + base);
+            if (isNaN(bd)) return null;
+            const d = new Date(bd); d.setDate(d.getDate() + off); return d; }
+      catch(e) { return null; }
+    })();
+
+    // Next year deadline
+    const dlNext = (() => {
+      try { const bd = new Date((today.getFullYear()+1) + "-" + base);
+            if (isNaN(bd)) return null;
+            const d = new Date(bd); d.setDate(d.getDate() + off); return d; }
+      catch(e) { return null; }
+    })();
+
+    if (dlThis && dlThis >= today) return dlThis;  // upcoming
+    if (dlThis && dlThis < today) {
+      if (!isDone) return dlThis;  // OVERDUE — stays here until marked Done/Submitted
+      return dlNext;               // marked done → show next year
+    }
+    return dlNext;
+  }
+
+  // Anniversary-based
+  const ref = last ? new Date(last) : incorp ? new Date(incorp) : null;
+  if (!ref || isNaN(ref)) return null;
+  let dl = addMonths(ref, p);
+  let prevDl = null;
+  while (dl < today) { prevDl = dl; dl = addMonths(dl, p); }
+  // If no last date recorded and deadline passed → show as overdue until done
+  if (prevDl && !last && !isDone) return prevDl;
+  return dl;
+}
+
+function statusOf(days) {
+  if (days === null) return "unk";
+  if (days > 30) return "ok";
+  if (days >= 0) return "soon";
+  return "over";
+}
+
+function worstStatus(s1, s2) {
+  const rank = {over:0, soon:1, ok:2, unk:3};
+  if ((rank[s1]??3) <= (rank[s2]??3)) return s1;
+  return s2;
+}
+
+function processed() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  return ENTITIES.map(e => {
+    // Internal obligation
+    const int_isDone = e.int_status2026 === "submitted";
+    const int_dl   = e.int_type ? calcDeadlineFor(
+      e.int_base || "", e.int_rule || "", e.int_period || 12,
+      e.int_last || e.last || "", e.int_incorp || "", int_isDone) : null;
+    const int_days = int_dl ? Math.round((int_dl - today) / 86400000) : null;
+    const int_status = e.int_type ? statusOf(int_days) : "unk";
+    const ext_isDone = e.ext_status2026 === "submitted" || e.status2026 === "submitted";
+    // Fallback to legacy fields for old JSONBin data compatibility
+    const ext_dl   = (e.ext_type || e.type) ? calcDeadlineFor(
+      e.ext_base || e.base || "", e.ext_rule || e.rule || "", e.ext_period || e.period || 12,
+      e.ext_last || e.last || "", e.ext_incorp || e.incorp || "", ext_isDone) : null;
+    const ext_days = ext_dl ? Math.round((ext_dl - today) / 86400000) : null;
+    const ext_status = e.ext_type ? statusOf(ext_days) : "unk";
+    // Overall = worst active status
+    const activeStatuses = [e.int_type ? int_status : null, e.ext_type ? ext_status : null].filter(Boolean);
+    const overall = activeStatuses.length ? activeStatuses.reduce(worstStatus) : "unk";
+    // dl for sorting = earliest active deadline
+    const dls = [int_dl, ext_dl].filter(Boolean);
+    const earliest_dl = dls.length ? dls.reduce((a,b) => a < b ? a : b) : null;
+    // earliest_days for backward-compat (reminders, sorting by days)
+    const earliest_days = [int_days, ext_days].filter(d => d !== null).reduce((a,b) => a < b ? a : b, null);
+    return { ...e, int_dl, int_days, int_status, ext_dl, ext_days, ext_status, status: overall, dl: earliest_dl, days: earliest_days };
+  });
+}
+
+// ──────────────────────────────────────────────────────
+// FILTERS + SORT
+// ──────────────────────────────────────────────────────
+function applyFilters(data) {
+  const c   = document.getElementById("f-country").value;
+  const s   = document.getElementById("f-status").value;
+  const sc  = document.getElementById("f-section").value;
+  const fs  = document.getElementById("f-fs2026").value;
+  return data.filter(e =>
+    (!c  || e.country === c) &&
+    (!s  || e.status === s) &&
+    (!sc || e.section === sc) &&
+    (!fs || e.int_status2026 === fs || e.ext_status2026 === fs)
+  );
+}
+
+function applySort(data) {
+  const v = document.getElementById("f-sort").value;
+  const copy = [...data];
+  if (v === "asc")     copy.sort((a,b) => (a.dl||new Date(9999,0)) - (b.dl||new Date(9999,0)));
+  else if (v === "desc") copy.sort((a,b) => (b.dl||new Date(0)) - (a.dl||new Date(0)));
+  else if (v === "name") copy.sort((a,b) => a.name.localeCompare(b.name));
+  else if (v === "country") copy.sort((a,b) => a.country.localeCompare(b.country));
+  return copy;
+}
+
+function toggleSort(col) {
+  const mapping = { name: "name", country: "country", dl: "asc", days: "asc" };
+  document.getElementById("f-sort").value = mapping[col] || "asc";
+  render();
+}
+
+// ──────────────────────────────────────────────────────
+// FORMAT
+// ──────────────────────────────────────────────────────
+function fmtDate(d) { if (!d) return "—"; return d.toLocaleDateString("en-GB", {day:"2-digit",month:"short",year:"numeric"}); }
+
+const FLAG = {
+  Malta:"🇲🇹","United Kingdom":"🇬🇧","Hong Kong":"🇭🇰","United States":"🇺🇸",
+  Ukraine:"🇺🇦",Poland:"🇵🇱",Spain:"🇪🇸",India:"🇮🇳",Brazil:"🇧🇷",Australia:"🇦🇺",
+  Germany:"🇩🇪",China:"🇨🇳"
+};
+function getFlag(e) {
+  if (e.section === "us") return "🇺🇸";
+  return FLAG[e.country] || "";
+}
+
+// ──────────────────────────────────────────────────────
+// RENDER
+// ──────────────────────────────────────────────────────
+const lbl = {ok:"OK", soon:"Due soon", over:"Overdue", unk:"Unknown"};
+
+// ──────────────────────────────────────────────────────
+// FILING STATUS 2026 — global scope, no dependency on render()
+// ──────────────────────────────────────────────────────
+const FS_CYCLE = ["", "submitted", "pending", "na"];
+const FS_LABEL_INT = { "": "— set status", submitted: "✅ Done",      pending: "⏳ Pending", na: "N/A" };
+const FS_LABEL_EXT = { "": "— set status", submitted: "✅ Submitted", pending: "⏳ Pending", na: "N/A" };
+const FS_LABEL = FS_LABEL_EXT; // default for export/reminders
+
+function toggleFS2026(id, kind) {
+  const e = ENTITIES.find(x => x.id === id);
+  if (!e) return;
+  const field = kind === "int" ? "int_status2026" : "ext_status2026";
+  const cur = e[field] || "";
+  const idx = FS_CYCLE.indexOf(cur);
+  e[field] = FS_CYCLE[(idx + 1) % FS_CYCLE.length];
+  debouncedSave();
+  render();
+}
+
+function fsBadge(e, kind) {
+  const field  = kind === "int" ? "int_status2026" : "ext_status2026";
+  const labels = kind === "int" ? FS_LABEL_INT : FS_LABEL_EXT;
+  const v   = e[field] || "";
+  const cls = v || "unset";
+  return `<span class="fs-badge ${cls}" onclick="toggleFS2026(${e.id},'${kind}')" title="Click to change">${labels[v]}</span>`;
+}
+
+function dStr(days) {
+  return days === null ? "—" : days < 0 ? `−${Math.abs(days)}` : String(days);
+}
+function obligCell(type, dl, days, status, authHint, period) {
+  if (!type) return `<td class="obl-none" colspan="3">—</td><td class="obl-none"></td>`;
+  const biTag = period === 24 ? `<span class="biennial-tag">biennial</span>` : "";
+  const auth  = authHint ? `<span class="auth-hint">${authHint}</span>` : "";
+  const badge = `<span class="badge ${status}">${status==="over"?"⚠ Overdue":(lbl[status]||"")}</span>`;
+  return `<td class="obl-type">${type}${biTag}${auth}</td>
+    <td class="obl-dl" style="white-space:nowrap">${fmtDate(dl)}</td>
+    <td class="obl-days" style="text-align:right;font-variant-numeric:tabular-nums">${dStr(days)}</td>
+    <td class="obl-status">${badge}</td>`;
+}
+
+function buildRows(rows) {
+  return rows.map(e => {
+    const rowCls = e.status === "over" ? "row-over" : e.status === "soon" ? "row-soon" : "";
+    const intCells = obligCell(e.int_type, e.int_dl, e.int_days, e.int_status, e.int_authority && !e.int_authority.startsWith("Internal") ? e.int_authority : "", e.int_period);
+    const extCells = obligCell(e.ext_type, e.ext_dl, e.ext_days, e.ext_status, e.ext_authority, e.ext_period);
+    return `<tr class="${rowCls}">
+      <td style="font-weight:500;min-width:150px">${e.name || ""}</td>
+      <td style="white-space:nowrap">${getFlag(e)} ${e.country || ""}</td>
+      ${intCells}
+      ${fsBadge(e,'int') ? `<td style="text-align:center">${fsBadge(e,'int')}</td>` : '<td></td>'}
+      ${extCells}
+      ${fsBadge(e,'ext') ? `<td style="text-align:center">${fsBadge(e,'ext')}</td>` : '<td></td>'}
+      <td style="text-align:center"><span class="src-tag">${e.src || ""}</span></td>
+      <td style="text-align:center"><button class="btn-icon" onclick="openEditPanel(${e.id})" title="Edit">✏️</button></td>
+    </tr>`;
+  }).join("");
+}
+
+function render() {
+  const all = processed();
+
+  const today = new Date();
+  const sectionFilter = document.getElementById("f-section").value;
+
+  // KPIs — always on full dataset
+  const c = {ok:0,soon:0,over:0,unk:0};
+  all.forEach(e => c[e.status]++);
+  document.getElementById("kpis").innerHTML = `
+    <div class="kpi total"><div class="kpi-n">${all.length}</div><div class="kpi-l">Total entities</div></div>
+    <div class="kpi ok">  <div class="kpi-n">${c.ok}</div>   <div class="kpi-l">✅ Compliant</div></div>
+    <div class="kpi soon"><div class="kpi-n">${c.soon}</div> <div class="kpi-l">⚠️ Due soon</div></div>
+    <div class="kpi over"><div class="kpi-n">${c.over}</div> <div class="kpi-l">🔴 Overdue</div></div>`;
+
+  // Reminders — always on full dataset
+  const urgent = all
+    .filter(e => {
+      if (e.status === "over") return true;
+      if (e.int_type && e.int_status2026 !== "submitted" && e.int_days !== null && e.int_days >= 0 && e.int_days <= 30) return true;
+      if (e.ext_type && e.ext_status2026 !== "submitted" && e.ext_days !== null && e.ext_days >= 0 && e.ext_days <= 30) return true;
+      return false;
+    })
+    .sort((a,b) => (a.days??9999) - (b.days??9999));
+  const rDiv = document.getElementById("reminders");
+  if (!urgent.length) {
+    rDiv.innerHTML = `<div class="rem-all-ok">✅ No urgent filings — all entities are on track.</div>`;
+  } else {
+    rDiv.innerHTML = urgent.map(e => {
+      const cls = e.status === "over" ? "over" : "soon";
+      // Build detail for int and/or ext
+      const parts = [];
+      if (e.int_type && e.int_status2026 !== "submitted" && e.int_days !== null && e.int_days <= 30) {
+        const tag = e.int_days < 0 ? `overdue by ${Math.abs(e.int_days)}d` : `${e.int_days}d left`;
+        parts.push(`📋 <b>Internal:</b> ${e.int_type} — ${tag} (${fmtDate(e.int_dl)})`);
+      }
+      if (e.ext_type && e.ext_status2026 !== "submitted" && e.ext_days !== null && e.ext_days <= 30) {
+        const tag = e.ext_days < 0 ? `overdue by ${Math.abs(e.ext_days)}d` : `${e.ext_days}d left`;
+        parts.push(`📤 <b>External:</b> ${e.ext_type} — ${tag} (${fmtDate(e.ext_dl)})`);
+      }
+      // Also catch overdue with days > 30 threshold but status=over
+      if (!parts.length) {
+        const tag = e.days < 0 ? `overdue by ${Math.abs(e.days)} day(s)` : `${e.days} day(s) left`;
+        parts.push(`${e.days < 0 ? "was due" : "due"} ${fmtDate(e.dl)} — ${tag}`);
+      }
+      const msg = `<b>${e.name}</b> (${e.country})<br><span style="font-size:11px">${parts.join('<br>')}</span>`;
+      return `<div class="rem-item ${cls}">${msg}</div>`;
+    }).join("");
+  }
+
+  // Toolbar
+  const filtered = applyFilters(all);
+  document.getElementById("toolbar-info").textContent =
+    filtered.length < all.length
+      ? `Showing ${filtered.length} of ${all.length} entities (filters active)`
+      : `Showing all ${all.length} entities`;
+
+  // Table — all entities sorted together, section headers added on change
+  const vis = applySort(filtered);
+  let rows = '';
+  let lastSec = '';
+  for (let i = 0; i < vis.length; i++) {
+    const e = vis[i];
+    const sec = e.section || 'intl';
+    if (sec !== lastSec) {
+      lastSec = sec;
+      rows += '<tr class="section-row"><td colspan="14">' +
+        (sec === 'us' ? '🇺🇸 US State Filings' : '🌍 International Entities') + '</td></tr>';
+    }
+    const st = e.status || 'unk';
+    const ist = e.int_status || 'unk';
+    const est = e.ext_status || 'unk';
+    const iDays = e.int_days === null || e.int_days === undefined ? '—' : (e.int_days < 0 ? '−'+Math.abs(e.int_days) : String(e.int_days));
+    const eDays = e.ext_days === null || e.ext_days === undefined ? '—' : (e.ext_days < 0 ? '−'+Math.abs(e.ext_days) : String(e.ext_days));
+    const iDl = fmtDate(e.int_dl);
+    const eDl = fmtDate(e.ext_dl);
+    const iBadge = '<span class="badge '+ist+'">'+(ist==='over'?'⚠ Overdue':(lbl[ist]||''))+'</span>';
+    const eBadge = '<span class="badge '+est+'">'+(est==='over'?'⚠ Overdue':(lbl[est]||''))+'</span>';
+    const iFiled = fsBadge(e,'int');
+    const eFiled = fsBadge(e,'ext');
+    const iType = e.int_type || '';
+    const eType = e.ext_type || '';
+    const eAuth = e.ext_authority || '';
+    const rowCls = st==='over'?'row-over':st==='soon'?'row-soon':'';
+    rows += '<tr class="'+rowCls+'">'+
+      '<td style="font-weight:500">'+(e.name||'')+'</td>'+
+      '<td>'+getFlag(e)+' '+(e.country||'')+'</td>'+
+      (iType ? '<td>'+iType+'</td><td>'+iDl+'</td><td style="text-align:right">'+iDays+'</td><td>'+iBadge+'</td>'
+             : '<td colspan="3" style="color:var(--text3)">—</td><td></td>')+
+      '<td style="text-align:center">'+iFiled+'</td>'+
+      (eType ? '<td>'+eType+'<span class="auth-hint">'+eAuth+'</span></td><td>'+eDl+'</td><td style="text-align:right">'+eDays+'</td><td>'+eBadge+'</td>'
+             : '<td colspan="3" style="color:var(--text3)">—</td><td></td>')+
+      '<td style="text-align:center">'+eFiled+'</td>'+
+      '<td style="text-align:center"><span class="src-tag">'+(e.src||'')+'</span></td>'+
+      '<td style="text-align:center"><button class="btn-icon" onclick="openEditPanel('+e.id+')" title="Edit">✏️</button></td>'+
+      '</tr>';
+  }
+  if (!rows) rows = '<tr><td colspan="14" style="text-align:center;padding:24px;color:var(--text2)">No entities match filters.</td></tr>';
+  document.getElementById('tbody').innerHTML = rows;
+
+  // Footer
+  document.getElementById("footer-info").textContent =
+    `Legal Compliance Tracker · Ideals Group · As of ${today.toLocaleDateString("en-GB",{day:"2-digit",month:"long",year:"numeric"})} · Deadlines auto-calculated`;
+}
+
+// ──────────────────────────────────────────────────────
+// ADD / EDIT PANEL
+// ──────────────────────────────────────────────────────
+function gv(id) { return document.getElementById(id).value; }
+function sv(id, val) { document.getElementById(id).value = val || ""; }
+
+function toggleIntFixed() {
+  const on = document.getElementById("p-int-fixed").checked;
+  document.getElementById("int-fixed-fields").style.display = on ? "flex" : "none";
+  document.getElementById("int-anniv-fields").style.display = on ? "none" : "flex";
+}
+function toggleExtFixed() {
+  const on = document.getElementById("p-ext-fixed").checked;
+  document.getElementById("ext-fixed-fields").style.display = on ? "flex" : "none";
+  document.getElementById("ext-anniv-fields").style.display = on ? "none" : "flex";
+}
+// keep old name as alias for any lingering calls
+function toggleFixedFields() {}
+
+function openAddPanel() {
+  editingId = null;
+  document.getElementById("panel-title").textContent = "Add entity";
+  document.getElementById("panel-save-btn").textContent = "Save entity";
+  document.getElementById("panel-delete-btn").style.display = "none";
+  clearForm();
+  document.getElementById("panel-error").style.display = "none";
+  document.getElementById("add-panel").classList.add("open");
+  document.getElementById("overlay").classList.add("open");
+}
+
+function openEditPanel(id) {
+  const e = ENTITIES.find(x => x.id === id);
+  if (!e) return;
+  editingId = id;
+  document.getElementById("panel-title").textContent = "Edit entity";
+  document.getElementById("panel-save-btn").textContent = "Update entity";
+  document.getElementById("panel-delete-btn").style.display = "inline-flex";
+  document.getElementById("panel-error").style.display = "none";
+
+  sv("p-name",    e.name);
+  sv("p-country", e.country);
+  sv("p-section", e.section || "intl");
+  sv("p-src",     e.src     || "USR");
+
+  // Internal
+  sv("p-int-type",      e.int_type      || "");
+  sv("p-int-last",      e.int_last      || "");
+  sv("p-int-incorp",    e.int_incorp    || "");
+  sv("p-int-base",      e.int_base      || "");
+  sv("p-int-rule",      e.int_rule      || "base_date + 42 days");
+  sv("p-int-period",    String(e.int_period || 12));
+  sv("p-int-authority", e.int_authority || "");
+  sv("p-int-status2026",e.int_status2026|| "");
+  const intFixed = !!(e.int_base && e.int_rule);
+  document.getElementById("p-int-fixed").checked = intFixed;
+  toggleIntFixed();
+
+  // External
+  sv("p-ext-type",      e.ext_type      || "");
+  sv("p-ext-last",      e.ext_last      || "");
+  sv("p-ext-incorp",    e.ext_incorp    || "");
+  sv("p-ext-base",      e.ext_base      || "");
+  sv("p-ext-rule",      e.ext_rule      || "base_date + 42 days");
+  sv("p-ext-period",    String(e.ext_period || 12));
+  sv("p-ext-authority", e.ext_authority || "");
+  sv("p-ext-status2026",e.ext_status2026|| "");
+  const extFixed = !!(e.ext_base && e.ext_rule);
+  document.getElementById("p-ext-fixed").checked = extFixed;
+  toggleExtFixed();
+
+  document.getElementById("add-panel").classList.add("open");
+  document.getElementById("overlay").classList.add("open");
+}
+
+function closeAddPanel() {
+  document.getElementById("add-panel").classList.remove("open");
+  document.getElementById("overlay").classList.remove("open");
+  editingId = null;
+}
+
+function clearForm() {
+  ["p-name","p-country","p-int-type","p-int-last","p-int-incorp","p-int-base","p-int-authority",
+   "p-ext-type","p-ext-last","p-ext-incorp","p-ext-base","p-ext-authority"].forEach(id => sv(id,""));
+  sv("p-int-rule","base_date + 42 days");
+  sv("p-ext-rule","base_date + 42 days");
+  sv("p-int-period","12"); sv("p-ext-period","12");
+  sv("p-int-status2026",""); sv("p-ext-status2026","");
+  sv("p-section","intl"); sv("p-src","USR");
+  document.getElementById("p-int-fixed").checked = false;
+  document.getElementById("p-ext-fixed").checked = false;
+  toggleIntFixed(); toggleExtFixed();
+}
+
+function showError(msg) {
+  const el = document.getElementById("panel-error");
+  el.className = "error-msg";
+  el.textContent = msg;
+  el.style.display = "block";
+}
+
+function saveEntity() {
+  const name    = gv("p-name").trim();
+  const country = gv("p-country").trim();
+  const section = gv("p-section") || "intl";
+  const src     = gv("p-src");
+
+  if (!name)    { showError("Entity name is required."); return; }
+  if (!country) { showError("Country is required."); return; }
+
+  const intFixed = document.getElementById("p-int-fixed").checked;
+  const extFixed = document.getElementById("p-ext-fixed").checked;
+
+  const entity = {
+    name, country, section, src,
+    int_type:      gv("p-int-type").trim(),
+    int_base:      intFixed ? gv("p-int-base").trim() : "",
+    int_rule:      intFixed ? gv("p-int-rule").trim() : "",
+    int_period:    parseInt(gv("p-int-period")) || 12,
+    int_last:      intFixed ? "" : gv("p-int-last"),
+    int_incorp:    intFixed ? "" : gv("p-int-incorp"),
+    int_authority: gv("p-int-authority").trim(),
+    int_status2026:gv("p-int-status2026"),
+    ext_type:      gv("p-ext-type").trim(),
+    ext_base:      extFixed ? gv("p-ext-base").trim() : "",
+    ext_rule:      extFixed ? gv("p-ext-rule").trim() : "",
+    ext_period:    parseInt(gv("p-ext-period")) || 12,
+    ext_last:      extFixed ? "" : gv("p-ext-last"),
+    ext_incorp:    extFixed ? "" : gv("p-ext-incorp"),
+    ext_authority: gv("p-ext-authority").trim(),
+    ext_status2026:gv("p-ext-status2026"),
+  };
+
+  if (editingId !== null) {
+    const idx = ENTITIES.findIndex(x => x.id === editingId);
+    if (idx >= 0) ENTITIES[idx] = { ...entity, id: editingId };
+  } else {
+    entity.id = nextId++;
+    ENTITIES.push(entity);
+  }
+
+  populateCountryFilter();
+  closeAddPanel();
+  render();
+  debouncedSave();
+}
+
+function deleteEntity() {
+  if (!confirm("Delete this entity?")) return;
+  ENTITIES = ENTITIES.filter(x => x.id !== editingId);
+  populateCountryFilter();
+  closeAddPanel();
+  render();
+  debouncedSave();
+}
+
+// ──────────────────────────────────────────────────────
+// UTILS
+// ──────────────────────────────────────────────────────
+function clearFilters() {
+  ["f-country","f-status","f-section","f-fs2026"].forEach(id => document.getElementById(id).value = "");
+  render();
+}
+
+function populateCountryFilter() {
+  const all = [...new Set(ENTITIES.map(e => e.country))].sort();
+  const sel = document.getElementById("f-country");
+  const cur = sel.value;
+  sel.innerHTML = `<option value="">All</option>` + all.map(c => `<option${c===cur?" selected":""}>${c}</option>`).join("");
+}
+
+function exportCSV() {
+  const all = processed();
+  const intlRows = applySort(applyFilters(all).filter(e => e.section === "intl"));
+  const usRows   = applySort(applyFilters(all).filter(e => e.section === "us"));
+  const data = [...intlRows, ...usRows];
+  const hdr = "Section,Entity,Country,Internal Type,Internal Deadline,Internal Days,Internal Status,Internal Filed 2026,External Type,External Deadline,External Days,External Status,External Filed 2026,Overall Status,Source";
+  const rows = data.map(e =>
+    `"${e.section==="us"?"US State":"International"}","${e.name}","${e.country}","${e.int_type||''}","${fmtDate(e.int_dl)}","${e.int_days??''}","${e.int_status||''}","${FS_LABEL_INT[e.int_status2026||'']||''}","${e.ext_type||''}","${fmtDate(e.ext_dl)}","${e.ext_days??''}","${e.ext_status||''}","${FS_LABEL_EXT[e.ext_status2026||'']||''}","${e.status}","${e.src}"`
+  );
+  const blob = new Blob([[hdr,...rows].join("\n")], {type:"text/csv"});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+  a.download = "ideals_compliance.csv"; a.click();
+}
+
+// ──────────────────────────────────────────────────────
+// SYNC — JSONBin.io (real-time) + localStorage (fallback)
+// ──────────────────────────────────────────────────────
+const API_KEY = '$2a$10$SxoLNqyPfGLC4vqqZymZSuxad8nRIT3puMf4P15eT39QWL4wN2F9m';
+const FIXED_BIN_ID = '6a107ee8ee5a733b1201a4a5';
+let CLOUD = { apiKey: API_KEY, binId: FIXED_BIN_ID };
+let saveDebounce = null;
+let refreshTimer  = null;
+
+function setSyncStatus(state, msg) {
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  dot.className   = 'sync-dot ' + state;
+  lbl.textContent = msg;
+}
+
+function saveToLocal() {
+  try {
+    const payload = { entities: ENTITIES, ts: Date.now() };
+    localStorage.setItem('lct_entities', JSON.stringify(payload));
+  } catch(e) {}
+}
+
+async function saveToCloud() {
+  if (!CLOUD.binId) return;
+  try {
+    setSyncStatus('saving', 'Saving…');
+    const r = await fetch('https://api.jsonbin.io/v3/b/' + CLOUD.binId, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Master-Key': CLOUD.apiKey },
+      body: JSON.stringify({ entities: ENTITIES, ts: Date.now() })
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    setSyncStatus('ok', 'Saved ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}));
+  } catch(e) { setSyncStatus('error', 'Save error'); }
+}
+
+async function fetchFromCloud() {
+  if (!CLOUD.binId) return false;
+  try {
+    const r = await fetch('https://api.jsonbin.io/v3/b/' + CLOUD.binId + '/latest', {
+      headers: { 'X-Master-Key': CLOUD.apiKey, 'X-Bin-Meta': 'false' }
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    if (data && data.entities && Array.isArray(data.entities)) {
+      const cloudEnts = data.entities;
+      const cloudTs = data.ts || 0;
+      // If cloud has OLD structure (no int_type) → push local data to cloud
+      if (cloudEnts.length > 0 && cloudEnts[0].int_type === undefined) {
+        console.log('Cloud has old data — pushing current data to cloud');
+        await saveToCloud();
+        return true;
+      }
+      // Use cloud data only if newer than local
+      let localTs = 0;
+      try {
+        const loc = JSON.parse(localStorage.getItem('lct_entities') || '{}');
+        localTs = loc.ts || 0;
+      } catch(e) {}
+      if (cloudTs >= localTs) {
+        ENTITIES = cloudEnts;
+        nextId = Math.max(...ENTITIES.map(e => e.id), 40) + 1;
+        saveToLocal();
+        populateCountryFilter();
+        render();
+      }
+    }
+    setSyncStatus('ok', 'Synced ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}));
+    return true;
+  } catch(e) { setSyncStatus('error', 'Sync error'); return false; }
+}
+
+async function connectCloud(pushOnly = false) {
+  CLOUD.binId = FIXED_BIN_ID;
+  localStorage.setItem('lct_cloud', JSON.stringify({ binId: FIXED_BIN_ID }));
+  if (pushOnly) {
+    // Have local changes — push them, don't pull
+    await saveToCloud();
+    startRefresh();
+  } else {
+    // No local data — pull from cloud
+    const ok = await fetchFromCloud();
+    if (ok) startRefresh();
+    else setSyncStatus('offline', 'Offline — local only');
+  }
+}
+
+async function forceSyncToCloud() {
+  if (!CLOUD.binId) {
+    setSyncStatus('saving', 'Connecting…');
+    await connectCloud();
+    return;
+  }
+  await saveToCloud();
+  alert('✅ Synced! Colleagues will see your changes within 30 seconds.');
+}
+
+function startRefresh() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  // Every 30s: pull cloud if cloud is newer, else push local
+  refreshTimer = setInterval(async () => {
+    if (!CLOUD.binId) return;
+    try {
+      const r = await fetch('https://api.jsonbin.io/v3/b/' + CLOUD.binId + '/latest', {
+        headers: { 'X-Master-Key': CLOUD.apiKey, 'X-Bin-Meta': 'false' }
+      });
+      if (!r.ok) return;
+      const data = await r.json();
+      const cloudTs = (data && data.ts) || 0;
+      let localTs = 0;
+      try { localTs = (JSON.parse(localStorage.getItem('lct_entities') || '{}').ts) || 0; } catch(e) {}
+      if (cloudTs > localTs && data.entities && data.entities.length > 0 && data.entities[0].int_type !== undefined) {
+        // Cloud is newer (colleague made changes) — pull
+        ENTITIES = data.entities;
+        nextId = Math.max(...ENTITIES.map(e => e.id), 40) + 1;
+        saveToLocal();
+        populateCountryFilter();
+        render();
+        setSyncStatus('ok', 'Updated ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}));
+      }
+    } catch(e) {}
+  }, 30000);
+}
+
+const DATA_VERSION = "v2026-05-16";
+
+function loadFromLocal() {
+  try {
+    const saved = localStorage.getItem('lct_entities');
+    if (saved) {
+      const payload = JSON.parse(saved);
+      // Handle both old array format and new {entities, ts} format
+      const entities = Array.isArray(payload) ? payload : payload.entities;
+      if (Array.isArray(entities) && entities.length > 0 && entities[0].int_type !== undefined) {
+        ENTITIES = entities;
+        nextId = Math.max(...ENTITIES.map(e => e.id), 40) + 1;
+        return true;
+      }
+    }
+  } catch(e) {}
+  return false;
+}
+
+function debouncedSave() {
+  saveToLocal();
+  clearTimeout(saveDebounce);
+  saveDebounce = setTimeout(saveToCloud, 800);
+}
+function openSetupModal() {} function closeSetupModal() {}
+
+// ── Export / Import for team sharing ──────────────────
+function exportState() {
+  const blob = new Blob([JSON.stringify({ entities: ENTITIES }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'ideals-compliance-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+}
+
+function importState() {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = '.json';
+  input.onchange = ev => {
+    const file = ev.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const data = JSON.parse(e.target.result);
+        const ents = data.entities || data;
+        if (!Array.isArray(ents)) throw new Error('Invalid format');
+        ENTITIES = ents;
+        nextId = Math.max(...ENTITIES.map(e => e.id), 40) + 1;
+        saveToLocal(); populateCountryFilter(); render();
+        setSyncStatus('ok', 'Imported ✓');
+      } catch(err) { alert('Import failed: ' + err.message); }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+// ──────────────────────────────────────────────────────
+// INIT
+// ──────────────────────────────────────────────────────
+const today = new Date();
+document.getElementById('hdr-date').textContent =
+  'Today: ' + today.toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'});
+
+// Load local data first — always preserves user changes
+const hasLocal = loadFromLocal();
+populateCountryFilter();
+render();
+
+// Sync with cloud
+if (hasLocal) {
+  // Have local data — push it to cloud (don't overwrite with cloud)
+  connectCloud(true);
+} else {
+  // No local data — pull from cloud
+  connectCloud(false);
+}
+</script>
+</body>
+</html>
