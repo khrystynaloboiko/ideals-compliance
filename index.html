@@ -300,6 +300,24 @@
   .fs-badge.na        { background: var(--bg3);      color: var(--text3); }
   .fs-badge.unset     { background: var(--bg3);      color: var(--text3);
                         border: 1px dashed var(--border); }
+
+  /* ── Tab navigation ── */
+  .tab-nav { background: #0a1628; border-bottom: 1px solid #1e2d42; }
+  .tab-nav-inner { display: flex; gap: 2px; padding: 0 16px; overflow-x: auto; }
+  .nav-tab {
+    background: none; border: none; border-bottom: 2.5px solid transparent;
+    color: #7a8fa6; font-family: inherit; font-size: 13.5px; font-weight: 600;
+    padding: 13px 18px 12px; cursor: pointer; white-space: nowrap;
+    transition: color .15s, border-color .15s;
+  }
+  .nav-tab:hover { color: #ffffff; }
+  .nav-tab.active { color: #ffffff; border-bottom-color: var(--accent); }
+  .nav-tab .tab-count {
+    display: inline-block; margin-left: 6px; padding: 1px 7px;
+    border-radius: 20px; font-size: 11px; font-weight: 700;
+    background: rgba(255,255,255,.1); color: #9aafc4;
+  }
+  .nav-tab.active .tab-count { background: var(--accent); color: #fff; }
 </style>
 </head>
 <body>
@@ -320,6 +338,21 @@
   </div>
 </div>
 
+<!-- Tab Navigation -->
+<nav class="tab-nav">
+  <div class="tab-nav-inner">
+    <button class="nav-tab active" onclick="switchTab('all')" id="tab-all">
+      All <span class="tab-count" id="cnt-all">0</span>
+    </button>
+    <button class="nav-tab" onclick="switchTab('int')" id="tab-int">
+      📋 Internal Action <span class="tab-count" id="cnt-int">0</span>
+    </button>
+    <button class="nav-tab" onclick="switchTab('ext')" id="tab-ext">
+      📤 External Filing <span class="tab-count" id="cnt-ext">0</span>
+    </button>
+  </div>
+</nav>
+
 <div class="layout">
 
   <!-- Sidebar -->
@@ -339,6 +372,7 @@
           <option value="ok">OK</option>
         </select>
       </div>
+
 
       <div class="s-field">
         <label>Section</label>
@@ -417,28 +451,7 @@
     <!-- Table -->
     <div class="table-wrap">
       <table>
-         <thead>
-           <tr>
-             <th rowspan="2" onclick="toggleSort('name')" style="vertical-align:bottom;min-width:150px">Entity ↕</th>
-             <th rowspan="2" onclick="toggleSort('country')" style="vertical-align:bottom">Country ↕</th>
-             <th colspan="5" class="th-group-internal">📋 INTERNAL ACTION</th>
-             <th colspan="5" class="th-group-external">📤 EXTERNAL FILING</th>
-             <th rowspan="2" style="vertical-align:bottom;text-align:center">Src</th>
-             <th rowspan="2" style="vertical-align:bottom;text-align:center">Edit</th>
-           </tr>
-           <tr>
-             <th class="th-sub-internal">Type</th>
-             <th class="th-sub-internal" onclick="toggleSort('dl')">Deadline ↕</th>
-             <th class="th-sub-internal" style="text-align:right">Days</th>
-             <th class="th-sub-internal">Status</th>
-             <th class="th-sub-internal" style="text-align:center">Filed 2026</th>
-             <th class="th-sub-external">Type</th>
-             <th class="th-sub-external" onclick="toggleSort('dl')">Deadline ↕</th>
-             <th class="th-sub-external" style="text-align:right">Days</th>
-             <th class="th-sub-external">Status</th>
-             <th class="th-sub-external" style="text-align:center">Filed 2026</th>
-           </tr>
-         </thead>
+        <thead id="thead-wrap"></thead>
         <tbody id="tbody"></tbody>
       </table>
     </div>
@@ -872,12 +885,20 @@ function applyFilters(data) {
   const s   = document.getElementById("f-status").value;
   const sc  = document.getElementById("f-section").value;
   const fs  = document.getElementById("f-fs2026").value;
-  return data.filter(e =>
-    (!c  || e.country === c) &&
-    (!s  || e.status === s) &&
-    (!sc || e.section === sc) &&
-    (!fs || e.int_status2026 === fs || e.ext_status2026 === fs)
-  );
+  return data.filter(e => {
+    if (!c  || e.country === c) {} else return false;
+    if (!fs || e.int_status2026 === fs || e.ext_status2026 === fs) {} else return false;
+    if (sc && e.section !== sc) return false;
+    // Tab filter
+    if (ACTIVE_TAB === 'int' && !e.int_type) return false;
+    if (ACTIVE_TAB === 'ext' && !e.ext_type) return false;
+    // Status filter (respect tab)
+    if (s) {
+      const st = ACTIVE_TAB === 'int' ? e.int_status : ACTIVE_TAB === 'ext' ? e.ext_status : e.status;
+      if (st !== s) return false;
+    }
+    return true;
+  });
 }
 
 function applySort(data) {
@@ -915,6 +936,14 @@ function getFlag(e) {
 // RENDER
 // ──────────────────────────────────────────────────────
 const lbl = {ok:"OK", soon:"Due soon", over:"Overdue", unk:"Unknown"};
+let ACTIVE_TAB = 'all'; // 'all' | 'int' | 'ext'
+
+function switchTab(tab) {
+  ACTIVE_TAB = tab;
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  render();
+}
 
 // ──────────────────────────────────────────────────────
 // FILING STATUS 2026 — global scope, no dependency on render()
@@ -1032,8 +1061,65 @@ function render() {
       ? `Showing ${filtered.length} of ${all.length} entities (filters active)`
       : `Showing all ${all.length} entities`;
 
-  // Table — all entities sorted together, section headers added on change
+  // ── Tab counts ──────────────────────────────────────────────────
+  const allData = processed();
+  document.getElementById('cnt-all').textContent = allData.length;
+  document.getElementById('cnt-int').textContent = allData.filter(e => e.int_type).length;
+  document.getElementById('cnt-ext').textContent = allData.filter(e => e.ext_type).length;
+
+  // ── Dynamic thead ────────────────────────────────────────────────
+  const thead = document.getElementById('thead-wrap');
+  if (ACTIVE_TAB === 'all') {
+    thead.innerHTML = `<tr>
+      <th rowspan="2" onclick="toggleSort('name')" style="vertical-align:bottom;min-width:150px">Entity ↕</th>
+      <th rowspan="2" onclick="toggleSort('country')" style="vertical-align:bottom">Country ↕</th>
+      <th colspan="5" class="th-group-internal">📋 INTERNAL ACTION</th>
+      <th colspan="5" class="th-group-external">📤 EXTERNAL FILING</th>
+      <th rowspan="2" style="vertical-align:bottom;text-align:center">Src</th>
+      <th rowspan="2" style="vertical-align:bottom;text-align:center">Edit</th>
+    </tr><tr>
+      <th class="th-sub-internal">Type</th>
+      <th class="th-sub-internal" onclick="toggleSort('dl')">Deadline ↕</th>
+      <th class="th-sub-internal" style="text-align:right">Days</th>
+      <th class="th-sub-internal">Status</th>
+      <th class="th-sub-internal" style="text-align:center">Filed 2026</th>
+      <th class="th-sub-external">Type</th>
+      <th class="th-sub-external" onclick="toggleSort('dl')">Deadline ↕</th>
+      <th class="th-sub-external" style="text-align:right">Days</th>
+      <th class="th-sub-external">Status</th>
+      <th class="th-sub-external" style="text-align:center">Filed 2026</th>
+    </tr>`;
+  } else if (ACTIVE_TAB === 'int') {
+    thead.innerHTML = `<tr>
+      <th onclick="toggleSort('name')" style="min-width:180px">Entity ↕</th>
+      <th onclick="toggleSort('country')">Country ↕</th>
+      <th class="th-sub-internal">Internal Action Type</th>
+      <th class="th-sub-internal" onclick="toggleSort('dl')">Deadline ↕</th>
+      <th class="th-sub-internal" style="text-align:right">Days</th>
+      <th class="th-sub-internal">Status</th>
+      <th class="th-sub-internal" style="text-align:center">Filed 2026</th>
+      <th>Authority</th>
+      <th style="text-align:center">Src</th>
+      <th style="text-align:center">Edit</th>
+    </tr>`;
+  } else {
+    thead.innerHTML = `<tr>
+      <th onclick="toggleSort('name')" style="min-width:180px">Entity ↕</th>
+      <th onclick="toggleSort('country')">Country ↕</th>
+      <th class="th-sub-external">External Filing Type</th>
+      <th class="th-sub-external" onclick="toggleSort('dl')">Deadline ↕</th>
+      <th class="th-sub-external" style="text-align:right">Days</th>
+      <th class="th-sub-external">Status</th>
+      <th class="th-sub-external" style="text-align:center">Filed 2026</th>
+      <th>Authority</th>
+      <th style="text-align:center">Src</th>
+      <th style="text-align:center">Edit</th>
+    </tr>`;
+  }
+
+  // ── Rows ─────────────────────────────────────────────────────────
   const vis = applySort(filtered);
+  const SPAN = ACTIVE_TAB === 'all' ? 14 : 10;
   let rows = '';
   let lastSec = '';
   for (let i = 0; i < vis.length; i++) {
@@ -1041,38 +1127,64 @@ function render() {
     const sec = e.section || 'intl';
     if (sec !== lastSec) {
       lastSec = sec;
-      rows += '<tr class="section-row"><td colspan="14">' +
+      rows += '<tr class="section-row"><td colspan="'+SPAN+'">' +
         (sec === 'us' ? '🇺🇸 US State Filings' : '🌍 International Entities') + '</td></tr>';
     }
-    const st = e.status || 'unk';
-    const ist = e.int_status || 'unk';
-    const est = e.ext_status || 'unk';
-    const iDays = e.int_days === null || e.int_days === undefined ? '—' : (e.int_days < 0 ? '−'+Math.abs(e.int_days) : String(e.int_days));
-    const eDays = e.ext_days === null || e.ext_days === undefined ? '—' : (e.ext_days < 0 ? '−'+Math.abs(e.ext_days) : String(e.ext_days));
-    const iDl = fmtDate(e.int_dl);
-    const eDl = fmtDate(e.ext_dl);
-    const iBadge = '<span class="badge '+ist+'">'+(ist==='over'?'⚠ Overdue':(lbl[ist]||''))+'</span>';
-    const eBadge = '<span class="badge '+est+'">'+(est==='over'?'⚠ Overdue':(lbl[est]||''))+'</span>';
-    const iFiled = fsBadge(e,'int');
-    const eFiled = fsBadge(e,'ext');
-    const iType = e.int_type || '';
-    const eType = e.ext_type || '';
-    const eAuth = e.ext_authority || '';
-    const rowCls = st==='over'?'row-over':st==='soon'?'row-soon':'';
-    rows += '<tr class="'+rowCls+'">'+
-      '<td style="font-weight:500">'+(e.name||'')+'</td>'+
-      '<td>'+getFlag(e)+' '+(e.country||'')+'</td>'+
-      (iType ? '<td>'+iType+'</td><td>'+iDl+'</td><td style="text-align:right">'+iDays+'</td><td>'+iBadge+'</td>'
-             : '<td colspan="3" style="color:var(--text3)">—</td><td></td>')+
-      '<td style="text-align:center">'+iFiled+'</td>'+
-      (eType ? '<td>'+eType+'<span class="auth-hint">'+eAuth+'</span></td><td>'+eDl+'</td><td style="text-align:right">'+eDays+'</td><td>'+eBadge+'</td>'
-             : '<td colspan="3" style="color:var(--text3)">—</td><td></td>')+
-      '<td style="text-align:center">'+eFiled+'</td>'+
-      '<td style="text-align:center"><span class="src-tag">'+(e.src||'')+'</span></td>'+
-      '<td style="text-align:center"><button class="btn-icon" onclick="openEditPanel('+e.id+')" title="Edit">✏️</button></td>'+
-      '</tr>';
+    if (ACTIVE_TAB === 'int') {
+      const st = e.int_status || 'unk';
+      const days = e.int_days === null ? '—' : (e.int_days < 0 ? '−'+Math.abs(e.int_days) : String(e.int_days));
+      const rowCls = st==='over'?'row-over':st==='soon'?'row-soon':'';
+      rows += '<tr class="'+rowCls+'">'+
+        '<td style="font-weight:500">'+(e.name||'')+'</td>'+
+        '<td>'+getFlag(e)+' '+(e.country||'')+'</td>'+
+        '<td>'+(e.int_type||'—')+'</td>'+
+        '<td style="white-space:nowrap">'+fmtDate(e.int_dl)+'</td>'+
+        '<td style="text-align:right">'+days+'</td>'+
+        '<td><span class="badge '+st+'">'+(st==='over'?'⚠ Overdue':(lbl[st]||''))+'</span></td>'+
+        '<td style="text-align:center">'+fsBadge(e,'int')+'</td>'+
+        '<td style="color:var(--text2);font-size:12px">'+(e.int_authority||'—')+'</td>'+
+        '<td style="text-align:center"><span class="src-tag">'+(e.src||'')+'</span></td>'+
+        '<td style="text-align:center"><button class="btn-icon" onclick="openEditPanel('+e.id+')" title="Edit">✏️</button></td>'+
+        '</tr>';
+    } else if (ACTIVE_TAB === 'ext') {
+      const st = e.ext_status || 'unk';
+      const days = e.ext_days === null ? '—' : (e.ext_days < 0 ? '−'+Math.abs(e.ext_days) : String(e.ext_days));
+      const rowCls = st==='over'?'row-over':st==='soon'?'row-soon':'';
+      rows += '<tr class="'+rowCls+'">'+
+        '<td style="font-weight:500">'+(e.name||'')+'</td>'+
+        '<td>'+getFlag(e)+' '+(e.country||'')+'</td>'+
+        '<td>'+(e.ext_type||'—')+'</td>'+
+        '<td style="white-space:nowrap">'+fmtDate(e.ext_dl)+'</td>'+
+        '<td style="text-align:right">'+days+'</td>'+
+        '<td><span class="badge '+st+'">'+(st==='over'?'⚠ Overdue':(lbl[st]||''))+'</span></td>'+
+        '<td style="text-align:center">'+fsBadge(e,'ext')+'</td>'+
+        '<td style="color:var(--text2);font-size:12px">'+(e.ext_authority||'—')+'</td>'+
+        '<td style="text-align:center"><span class="src-tag">'+(e.src||'')+'</span></td>'+
+        '<td style="text-align:center"><button class="btn-icon" onclick="openEditPanel('+e.id+')" title="Edit">✏️</button></td>'+
+        '</tr>';
+    } else {
+      const st = e.status || 'unk';
+      const ist = e.int_status || 'unk';
+      const est = e.ext_status || 'unk';
+      const iDays = e.int_days === null ? '—' : (e.int_days < 0 ? '−'+Math.abs(e.int_days) : String(e.int_days));
+      const eDays = e.ext_days === null ? '—' : (e.ext_days < 0 ? '−'+Math.abs(e.ext_days) : String(e.ext_days));
+      const rowCls = st==='over'?'row-over':st==='soon'?'row-soon':'';
+      const eAuth = e.ext_authority || '';
+      rows += '<tr class="'+rowCls+'">'+
+        '<td style="font-weight:500">'+(e.name||'')+'</td>'+
+        '<td>'+getFlag(e)+' '+(e.country||'')+'</td>'+
+        (e.int_type ? '<td>'+e.int_type+'</td><td>'+fmtDate(e.int_dl)+'</td><td style="text-align:right">'+iDays+'</td><td><span class="badge '+ist+'">'+(ist==='over'?'⚠ Overdue':(lbl[ist]||''))+'</span></td>'
+                    : '<td colspan="3" style="color:var(--text3)">—</td><td></td>')+
+        '<td style="text-align:center">'+fsBadge(e,'int')+'</td>'+
+        (e.ext_type ? '<td>'+e.ext_type+'<span class="auth-hint">'+eAuth+'</span></td><td>'+fmtDate(e.ext_dl)+'</td><td style="text-align:right">'+eDays+'</td><td><span class="badge '+est+'">'+(est==='over'?'⚠ Overdue':(lbl[est]||''))+'</span></td>'
+                    : '<td colspan="3" style="color:var(--text3)">—</td><td></td>')+
+        '<td style="text-align:center">'+fsBadge(e,'ext')+'</td>'+
+        '<td style="text-align:center"><span class="src-tag">'+(e.src||'')+'</span></td>'+
+        '<td style="text-align:center"><button class="btn-icon" onclick="openEditPanel('+e.id+')" title="Edit">✏️</button></td>'+
+        '</tr>';
+    }
   }
-  if (!rows) rows = '<tr><td colspan="14" style="text-align:center;padding:24px;color:var(--text2)">No entities match filters.</td></tr>';
+  if (!rows) rows = '<tr><td colspan="'+SPAN+'" style="text-align:center;padding:24px;color:var(--text2)">No entities match filters.</td></tr>';
   document.getElementById('tbody').innerHTML = rows;
 
   // Footer
@@ -1322,9 +1434,8 @@ async function fetchFromCloud() {
     const data = await r.json();
     if (!data || !data.entities) return false;
     const cloudTs = data.ts || 0;
-    let localTs = 0;
-    try { localTs = (JSON.parse(localStorage.getItem('lct_entities') || '{}').ts) || 0; } catch(e) {}
-    if (cloudTs > localTs && data.entities[0] && data.entities[0].int_type !== undefined) {
+    // Firebase is source of truth — always use cloud data if it has valid structure
+    if (data.entities[0] && data.entities[0].int_type !== undefined) {
       ENTITIES = data.entities;
       nextId = Math.max(...ENTITIES.map(e => e.id), 40) + 1;
       saveToLocal();
@@ -1375,19 +1486,14 @@ const today = new Date();
 document.getElementById('hdr-date').textContent =
   'Today: ' + today.toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'});
 
-// Load local data first — always preserves user changes
-const hasLocal = loadFromLocal();
+// Load from localStorage for instant display (if available)
+loadFromLocal();
 populateCountryFilter();
 render();
 
-// Sync with cloud
-if (hasLocal) {
-  // Have local data — push it to cloud (don't overwrite with cloud)
-  connectCloud(true);
-} else {
-  // No local data — pull from cloud
-  connectCloud(false);
-}
+// Always pull from Firebase — cloud is the source of truth
+// Firebase data overwrites local only if it's newer
+connectCloud(false);
 </script>
 </body>
 </html>
